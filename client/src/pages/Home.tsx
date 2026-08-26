@@ -204,22 +204,28 @@ function PreviewView({
   fileName,
   dragActive,
   onChoose,
+  onCameraChoose,
   onFile,
+  onCameraFile,
   onDrop,
   onDevelop,
   onRetake,
   inputRef,
+  cameraInputRef,
   setDragActive,
 }: {
   photo: string | null;
   fileName: string;
   dragActive: boolean;
   onChoose: () => void;
+  onCameraChoose: () => void;
   onFile: (file: File) => void;
+  onCameraFile: (file: File) => void;
   onDrop: (event: DragEvent<HTMLDivElement>) => void;
   onDevelop: () => void;
   onRetake: () => void;
   inputRef: RefObject<HTMLInputElement | null>;
+  cameraInputRef: RefObject<HTMLInputElement | null>;
   setDragActive: (value: boolean) => void;
 }) {
   return (
@@ -248,12 +254,16 @@ function PreviewView({
             </button>
           </div>
         ) : (
-          <button className="drop-target" onClick={onChoose}>
+          <div className="drop-target">
             <div className="drop-icon"><ImagePlus size={27} strokeWidth={1.6} /></div>
-            <span className="drop-title">Drop your outfit here</span>
-            <span className="drop-subtitle">or choose from your camera roll</span>
-            <span className="drop-hint mono"><Camera size={13} /> CAMERA READY</span>
-          </button>
+            <span className="drop-title">Add your outfit</span>
+            <span className="drop-subtitle">Drop a photo here or choose how to add it.</span>
+            <div className="upload-options">
+              <button className="upload-option upload-option--primary" onClick={onChoose}><FolderOpen size={16} /> Choose from camera roll</button>
+              <button className="upload-option upload-option--secondary" onClick={onCameraChoose}><Camera size={16} /> Take a photo</button>
+            </div>
+            <span className="drop-hint mono">FULL OUTFIT WORKS BEST</span>
+          </div>
         )}
       </div>
 
@@ -271,9 +281,13 @@ function PreviewView({
           </button>
         </div>
       </div>
-      <input ref={inputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => {
+      <input ref={inputRef} type="file" accept="image/*" hidden onChange={(event) => {
         const file = event.target.files?.[0];
         if (file) onFile(file);
+      }} />
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => {
+        const file = event.target.files?.[0];
+        if (file) onCameraFile(file);
       }} />
     </section>
   );
@@ -442,6 +456,7 @@ export default function Home() {
   const [score, setScore] = useState(0);
   const [saved, setSaved] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const reducedMotion = useReducedMotion();
 
   const photo = previewUrl ?? HERO_IMAGE;
@@ -537,7 +552,7 @@ export default function Home() {
       <main>
         <AnimatePresence mode="wait" initial={false}>
           {stage === "home" && <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.24 }}><HomeView onDevelop={() => setStage("preview")} onSample={useSample} onHistory={() => setStage("history")} /></motion.div>}
-          {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28 }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onFile={chooseFile} onDrop={handleDrop} onDevelop={() => setStage("analyzing")} onRetake={() => { setPreviewUrl(null); setFileName("frame_014.jpg"); }} inputRef={inputRef} setDragActive={setDragActive} /></motion.div>}
+          {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28 }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onCameraChoose={() => cameraInputRef.current?.click()} onFile={chooseFile} onCameraFile={chooseFile} onDrop={handleDrop} onDevelop={() => setStage("analyzing")} onRetake={() => { setPreviewUrl(null); setFileName("frame_014.jpg"); }} inputRef={inputRef} cameraInputRef={cameraInputRef} setDragActive={setDragActive} /></motion.div>}
           {stage === "analyzing" && <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}><AnalyzingView photo={photo} messageIndex={analysisIndex} /></motion.div>}
           {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}><ResultsView photo={photo} score={score} saved={saved} onSave={() => { setSaved(true); toast("Fit saved to your archive."); }} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
           {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><HistoryView onBack={startOver} onDevelop={() => setStage("preview")} /></motion.div>}

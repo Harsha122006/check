@@ -7,3 +7,6 @@ The revised results view makes the rating the first element in the notes column.
 The responsive home and 404 screenshots remain legible at 375px. The mobile workbench presents the main Develop My Fit action as full width, while the mobile 404 route uses the same paper, crop marks, and red action system.
 
 The final typecheck and production build pass. The build emits only the existing Vite chunk-size advisory.
+
+
+The redesigned upload screen was checked in the live browser. It now presents a large card with two clearly labeled actions: “Choose from camera roll” and “Take a photo,” plus the existing drop-zone behavior and disabled Develop this fit state until an image is selected. The new sky/mint/yellow palette reads clearly without obscuring the primary ink action.
