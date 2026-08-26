@@ -39,3 +39,7 @@
 - [x] Document the built-in storage deletion limitation; verified that deleted image references are absent from Archive and protected retrieval, while hard object deletion is unavailable in the configured storage helper.
 
 - [x] Reduce “What’s the fit today?” scale, enlarge useful action buttons, shrink instructions, and remove the bottom footer copy across responsive layouts.
+
+- [x] Audit and prepare FitCheck for GitHub export and external Vercel deployment without changing the existing live Manus version.
+
+- [ ] If a fully Manus-independent Vercel deployment is required, choose replacement providers and migrate AI, authentication, and storage adapters before external production launch.
