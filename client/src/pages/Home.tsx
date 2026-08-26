@@ -83,14 +83,41 @@ function CropMarks() {
   );
 }
 
-function ScoreStamp({ score, small = false }: { score: string | number; small?: boolean }) {
+function RatingReveal({ score }: { score: number }) {
+  const bubbles = [
+    { label: "COLOR", value: "9.1", className: "rating-bubble--one" },
+    { label: "SHAPE", value: "8.9", className: "rating-bubble--two" },
+    { label: "DETAIL", value: "8.3", className: "rating-bubble--three" },
+  ];
+
   return (
-    <div className={`score-stamp ${small ? "score-stamp--small" : ""}`}>
-      <svg viewBox="0 0 120 120" aria-hidden="true">
-        <path className="score-circle-shadow" d="M61 9C85 8 108 26 111 55c3 28-17 50-45 56C37 116 12 101 8 73 4 47 21 20 61 9Z" />
-        <path className="score-circle" d="M59 8C86 7 107 25 111 53c5 28-16 52-45 57C39 114 13 102 8 75 2 47 22 17 59 8Z" />
-      </svg>
-      <span className="score-value">{score}</span>
+    <div className="rating-hero">
+      <div className="rating-orbit">
+        <motion.div
+          className="rating-ring"
+          initial={{ scale: 0.86, opacity: 0, rotate: -16 }}
+          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+          transition={{ type: "spring", stiffness: 120, damping: 16, delay: 0.05 }}
+        >
+          <svg viewBox="0 0 160 160" aria-hidden="true">
+            <circle className="rating-ring-track" cx="80" cy="80" r="68" pathLength="1" />
+            <motion.circle className="rating-ring-progress" cx="80" cy="80" r="68" pathLength="1" initial={{ strokeDashoffset: 1 }} animate={{ strokeDashoffset: 1 - score / 10 }} transition={{ duration: 0.9, ease: "easeOut", delay: 0.18 }} />
+          </svg>
+          <div className="rating-center"><span className="rating-number">{score.toFixed(1)}</span><span className="mono rating-denom">OUT OF 10</span></div>
+        </motion.div>
+        {bubbles.map((bubble, index) => (
+          <motion.div
+            key={bubble.label}
+            className={`rating-bubble ${bubble.className}`}
+            initial={{ opacity: 0, scale: 0.78, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: [0, -5, 0] }}
+            transition={{ opacity: { delay: 0.3 + index * 0.08, duration: 0.2 }, scale: { delay: 0.3 + index * 0.08, type: "spring", stiffness: 160, damping: 13 }, y: { delay: 0.72 + index * 0.12, duration: 2.8, repeat: Infinity, ease: "easeInOut" } }}
+          >
+            <span className="mono">{bubble.label}</span><strong>{bubble.value}</strong>
+          </motion.div>
+        ))}
+      </div>
+      <div className="rating-copy"><span className="mono score-kicker">OVERALL FIT SCORE</span><p>A considered combination with room to sharpen.</p><span className="rating-caption">Your strongest signals are color and silhouette.</span></div>
     </div>
   );
 }
@@ -315,13 +342,7 @@ function ResultsView({
         </div>
 
         <div className="results-notes">
-          <div className="score-row">
-            <div>
-              <span className="mono score-kicker">OVERALL FIT SCORE</span>
-              <div className="score-context">A considered combination with room to sharpen.</div>
-            </div>
-            <ScoreStamp score={score.toFixed(1)} />
-          </div>
+          <RatingReveal score={score} />
 
           <div className="vibe-line"><span className="mono">VIBE TAG</span><span className="vibe-tag">clean utility</span></div>
 
@@ -509,8 +530,7 @@ export default function Home() {
           <button className={stage === "history" ? "is-active" : ""} onClick={() => setStage("history")}>Archive <span className="nav-count">14</span></button>
         </nav>
         <div className="topbar-tools">
-          <span className="mono live-indicator"><span /> LOCAL MODE</span>
-          <button className="topbar-avatar" aria-label="Open profile"><span>JR</span></button>
+          <button className="topbar-new-fit" onClick={() => setStage("preview")}><ImagePlus size={14} /> New fit</button>
         </div>
       </header>
 
