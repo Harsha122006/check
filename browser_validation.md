@@ -22,3 +22,12 @@ Dark redesign results check: the preserved sample flow reaches the analysis stat
 
 
 Opening-screen revision validation: the home route now presents only the Fit Check brand, “What’s the fit today?”, the requested subtext, the lime “CHECK MY FIT” primary CTA, quieter Take a photo / Choose from gallery options, and compact Recent Fits. Desktop and 375px mobile captures show the CTA is dominant and the screen is no longer overloaded. Non-home routes remain unchanged in structure and core functionality.
+
+
+Upload screen revision validation: the home CTA opens a focused “Check your fit” screen with the exact requested subtext and two large source options: “Take a photo” and “Choose from gallery.” The empty state has no competing form fields or explanations, and the source hierarchy is clear in the live browser.
+
+
+Upload-screen-only revision validation: the existing sample path now opens the new “Check your fit” screen with a large outfit preview, “Looking good already 👀”, optional category chips for Casual, Streetwear, College, Formal, Party, and Other, plus a single dominant “GET MY FIT SCORE” CTA. Change photo remains available without competing with submission.
+
+
+Optional category validation: selecting Casual visibly toggles the chip into the lime selected state, while all category choices remain optional and the “GET MY FIT SCORE” CTA stays available. The screen remains focused on the selected photo and one submission action.

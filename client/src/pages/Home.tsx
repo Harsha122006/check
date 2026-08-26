@@ -233,6 +233,8 @@ function PreviewView({
   inputRef,
   cameraInputRef,
   setDragActive,
+  category,
+  setCategory,
 }: {
   photo: string | null;
   fileName: string;
@@ -247,60 +249,60 @@ function PreviewView({
   inputRef: RefObject<HTMLInputElement | null>;
   cameraInputRef: RefObject<HTMLInputElement | null>;
   setDragActive: (value: boolean) => void;
+  category: string;
+  setCategory: (value: string) => void;
 }) {
   return (
-    <section className="flow-view preview-view">
-      <div className="flow-heading">
-        <div>
-          <span className="mono step-label">01 / ADD YOUR FIT</span>
-          <h1>Show us the fit.<br /><em>We’ll read the details.</em></h1>
-        </div>
-        <p className="flow-caption">Full-body shots give the clearest read.<br />Portrait or landscape both work.</p>
-      </div>
+    <section className="upload-screen">
+      <header className="upload-header">
+        <span className="mono step-label">01 / FIT CHECK</span>
+        <h1>Check your fit</h1>
+        <p>Take a photo or choose one from your gallery.</p>
+      </header>
 
       <div
-        className={`upload-stage ${dragActive ? "is-dragging" : ""} ${photo ? "has-photo" : ""}`}
+        className={`upload-card ${dragActive ? "is-dragging" : ""} ${photo ? "has-photo" : ""}`}
         onDrop={onDrop}
         onDragOver={(event) => { event.preventDefault(); setDragActive(true); }}
         onDragLeave={() => setDragActive(false)}
       >
         {photo ? (
-          <div className="preview-frame">
-            <CropMarks />
-            <img src={photo} alt="Outfit preview" />
-            <div className="preview-label mono">{fileName || "FRAME 014"}</div>
-            <button className="retake-button" onClick={onRetake}>
-              <RefreshCw size={14} /> Retake
-            </button>
-          </div>
-        ) : (
-          <div className="drop-target">
-            <div className="drop-icon"><ImagePlus size={27} strokeWidth={1.6} /></div>
-            <span className="drop-title">Add an outfit photo</span>
-            <span className="drop-subtitle">Choose a photo or take one now.</span>
-            <div className="upload-options">
-              <button className="upload-option upload-option--primary" onClick={onChoose}><FolderOpen size={16} /> Choose from photos</button>
-              <button className="upload-option upload-option--secondary" onClick={onCameraChoose}><Camera size={16} /> Use camera</button>
+          <>
+            <div className="upload-preview">
+              <CropMarks />
+              <img src={photo} alt="Outfit preview" />
+              <span className="preview-label mono">{fileName || "FRAME 014"}</span>
             </div>
-            <span className="drop-hint mono">FULL OUTFIT = BETTER READ</span>
+            <div className="selected-copy">
+              <h2>Looking good already 👀</h2>
+              <p>Tell us the vibe, or skip it and get your score.</p>
+            </div>
+            <div className="category-picker">
+              <span className="category-label">What kind of fit is this? <small>Optional</small></span>
+              <div className="category-chips">
+                {["Casual", "Streetwear", "College", "Formal", "Party", "Other"].map((option) => (
+                  <button key={option} className={category === option ? "category-chip is-selected" : "category-chip"} onClick={() => setCategory(category === option ? "" : option)}>{option}</button>
+                ))}
+              </div>
+            </div>
+            <div className="upload-submit-row">
+              <button className="change-photo" onClick={onRetake}><RefreshCw size={14} /> Change photo</button>
+              <button className="btn btn--red upload-submit" onClick={onDevelop}>GET MY FIT SCORE <ArrowUpRight size={17} /></button>
+            </div>
+          </>
+        ) : (
+          <div className="source-picker">
+            <div className="source-icon"><ImagePlus size={25} /></div>
+            <h2>Start with a photo</h2>
+            <div className="source-options">
+              <button className="source-option source-option--primary" onClick={onCameraChoose}><span className="source-option-icon"><Camera size={20} /></span><span><strong>Take a photo</strong><small>Use your camera</small></span><ArrowUpRight size={17} /></button>
+              <button className="source-option" onClick={onChoose}><span className="source-option-icon"><FolderOpen size={20} /></span><span><strong>Choose from gallery</strong><small>Pick an outfit photo</small></span><ArrowUpRight size={17} /></button>
+            </div>
+            <span className="drop-hint mono">OR DROP A PHOTO HERE</span>
           </div>
         )}
       </div>
 
-      <div className="flow-footer">
-        <div className="flow-footnote">
-          <span className="red-dot" />
-          <span>One photo. One clear read.</span>
-        </div>
-        <div className="flow-actions">
-          <button className="btn btn--quiet" onClick={onChoose}>
-            <FolderOpen size={16} /> Choose another
-          </button>
-          <button className="btn btn--red" onClick={onDevelop} disabled={!photo}>
-            Check this outfit <ArrowUpRight size={17} />
-          </button>
-        </div>
-      </div>
       <input ref={inputRef} type="file" accept="image/*" hidden onChange={(event) => {
         const file = event.target.files?.[0];
         if (file) onFile(file);
@@ -475,6 +477,7 @@ export default function Home() {
   const [analysisIndex, setAnalysisIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [category, setCategory] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const reducedMotion = useReducedMotion();
@@ -572,7 +575,7 @@ export default function Home() {
       <main>
         <AnimatePresence mode="wait" initial={false}>
           {stage === "home" && <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.24 }}><HomeView onDevelop={() => setStage("preview")} onSample={useSample} onHistory={() => setStage("history")} onGallery={() => { setStage("preview"); window.setTimeout(() => inputRef.current?.click(), 0); }} onCamera={() => { setStage("preview"); window.setTimeout(() => cameraInputRef.current?.click(), 0); }} /></motion.div>}
-          {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28 }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onCameraChoose={() => cameraInputRef.current?.click()} onFile={chooseFile} onCameraFile={chooseFile} onDrop={handleDrop} onDevelop={() => setStage("analyzing")} onRetake={() => { setPreviewUrl(null); setFileName("frame_014.jpg"); }} inputRef={inputRef} cameraInputRef={cameraInputRef} setDragActive={setDragActive} /></motion.div>}
+          {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28 }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onCameraChoose={() => cameraInputRef.current?.click()} onFile={chooseFile} onCameraFile={chooseFile} onDrop={handleDrop} onDevelop={() => setStage("analyzing")} onRetake={() => { setPreviewUrl(null); setFileName("frame_014.jpg"); setCategory(""); }} inputRef={inputRef} cameraInputRef={cameraInputRef} setDragActive={setDragActive} category={category} setCategory={setCategory} /></motion.div>}
           {stage === "analyzing" && <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}><AnalyzingView photo={photo} messageIndex={analysisIndex} /></motion.div>}
           {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}><ResultsView photo={photo} score={score} saved={saved} onSave={() => { setSaved(true); toast("Fit saved to your archive."); }} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
           {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><HistoryView onBack={startOver} onDevelop={() => setStage("preview")} /></motion.div>}
