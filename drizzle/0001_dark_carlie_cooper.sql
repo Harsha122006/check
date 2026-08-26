@@ -1,0 +1,2 @@
+ALTER TABLE `outfit_analyses` ADD CONSTRAINT `outfit_analyses_outfitId_outfits_id_fk` FOREIGN KEY (`outfitId`) REFERENCES `outfits`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE `outfits` ADD CONSTRAINT `outfits_userId_users_id_fk` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE cascade ON UPDATE no action;

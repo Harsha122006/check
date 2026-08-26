@@ -2,7 +2,7 @@
  * FitCheck style reminder: light-table editorial system; the frame is the hero.
  * Use cool paper, ink, mono edge codes, crop marks, and grease-pencil red sparingly.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent, RefObject } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { startLogin } from "@/const";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { isCurrentAnalysisRequest, shouldStartAnalysis } from "@/lib/analysisGuards";
 
 type Stage = "home" | "preview" | "analyzing" | "results" | "history";
@@ -69,7 +71,9 @@ const categories: Category[] = [
   { label: "Trend awareness", key: "SIGNAL / 05", score: 8.7, note: "quietly current" },
 ];
 
-const historyItems = [
+type HistoryItem = { id: string; date: string; score: string; vibe: string; image: string };
+
+const demoHistoryItems: HistoryItem[] = [
   { id: "014", date: "AUG 26", score: "8.7", vibe: "clean utility", image: HERO_IMAGE },
   { id: "013", date: "AUG 22", score: "7.9", vibe: "soft tailoring", image: FRAME_TWO },
   { id: "012", date: "AUG 19", score: "8.4", vibe: "after-class", image: FRAME_THREE },
@@ -81,6 +85,60 @@ const analysisMessages = [
   "Looking at the details…",
   "Putting your score together…",
 ];
+
+type PersistedHistoryRow = {
+  outfit: { id: number; imageUrl: string; createdAt: Date; category: string | null; analysisStatus: string };
+  analysis: {
+    overallScore: number;
+    colorScore: number | null;
+    fitScore: number | null;
+    shoesScore: number | null;
+    stylingScore: number | null;
+    verdict: string;
+    summary: string;
+    confidence: number;
+    strengths: string[];
+    improvements: string[];
+    coverage: { visible_categories: string[]; unavailable_categories: string[] };
+  } | null;
+};
+
+function persistedRowToResult(row: PersistedHistoryRow): FitCheckResult | null {
+  if (!row.analysis) return null;
+  const unavailable = row.analysis.coverage.unavailable_categories;
+  const category = (value: number | null, key: string): FitCheckCategory => ({
+    score: value === null ? null : value / 10,
+    visibility: unavailable.includes(key) ? "not_visible" : "visible",
+    reason: unavailable.includes(key) ? "Not visible in this frame." : "Evaluated from the visible frame.",
+  });
+  return {
+    overall_score: row.analysis.overallScore / 10,
+    scores: {
+      outfit: category(row.analysis.overallScore, "outfit"),
+      color: category(row.analysis.colorScore, "color"),
+      fit: category(row.analysis.fitScore, "fit"),
+      shoes: category(row.analysis.shoesScore, "shoes"),
+      styling: category(row.analysis.stylingScore, "styling"),
+    },
+    verdict: row.analysis.verdict,
+    summary: row.analysis.summary,
+    strengths: row.analysis.strengths,
+    improvements: row.analysis.improvements,
+    confidence: row.analysis.confidence / 100,
+    image_quality: "good",
+    coverage: row.analysis.coverage,
+  };
+}
+
+function mapPersistedHistory(rows: PersistedHistoryRow[]): HistoryItem[] {
+  return rows.filter((row) => row.analysis?.overallScore !== undefined).map((row) => ({
+    id: String(row.outfit.id).padStart(3, "0"),
+    date: new Date(row.outfit.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase(),
+    score: ((row.analysis?.overallScore ?? 0) / 10).toFixed(1),
+    vibe: row.outfit.category || row.analysis?.verdict || "saved look",
+    image: row.outfit.imageUrl,
+  }));
+}
 
 function fileToDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -173,12 +231,14 @@ function HomeView({
   onHistory,
   onGallery,
   onCamera,
+  recentItems,
 }: {
   onDevelop: () => void;
   onSample: () => void;
   onHistory: () => void;
   onGallery: () => void;
   onCamera: () => void;
+  recentItems: HistoryItem[];
 }) {
   return (
     <section className="home-view">
@@ -214,7 +274,7 @@ function HomeView({
       <section className="recent-fits" aria-labelledby="recent-fits-title">
         <div className="recent-heading"><h2 id="recent-fits-title">Recent fits</h2><button className="recent-see-all" onClick={onHistory}>See all <ArrowUpRight size={14} /></button></div>
         <div className="recent-fit-list">
-          {historyItems.slice(0, 3).map((item) => (
+          {recentItems.length === 0 ? <p className="history-empty">No saved fits yet.</p> : recentItems.slice(0, 3).map((item) => (
             <button className="recent-fit-card" key={item.id} onClick={onHistory}>
               <img src={item.image} alt="" />
               <span className="recent-fit-score">{item.score}</span>
@@ -480,7 +540,7 @@ function ResultsView({
   );
 }
 
-function HistoryView({ onBack, onDevelop }: { onBack: () => void; onDevelop: () => void }) {
+function HistoryView({ onBack, onDevelop, onDelete, onSelect, items }: { onBack: () => void; onDevelop: () => void; onDelete: (id: string) => void; onSelect: (id: string) => void; items: HistoryItem[] }) {
   return (
     <section className="history-view">
       <div className="history-heading">
@@ -512,10 +572,10 @@ function HistoryView({ onBack, onDevelop }: { onBack: () => void; onDevelop: () 
 
       <div className="history-toolbar"><span className="mono">RECENTLY DEVELOPED</span><button className="text-button" onClick={onDevelop}><span className="button-under">Develop a new fit</span><ArrowUpRight size={15} /></button></div>
       <div className="history-grid">
-        {historyItems.map((item, index) => (
-          <motion.article className="history-frame" key={item.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08, type: "spring", stiffness: 130, damping: 18 }}>
+        {items.length === 0 ? <p className="history-empty">No saved fits yet. Check a new fit to start your archive.</p> : items.map((item, index) => (
+          <motion.article className="history-frame" key={item.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08, type: "spring", stiffness: 130, damping: 18 }} onClick={() => onSelect(item.id)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(item.id); }}>
             <div className="history-image-wrap"><img src={item.image} alt={`${item.vibe} outfit frame`} /><span className="history-score">{item.score}</span><span className="history-frame-number mono">FC / {item.id}</span></div>
-            <div className="history-frame-meta"><div><span className="mono">{item.date} · FRAME {item.id}</span><h3>{item.vibe}</h3></div><button className="more-button" aria-label={`More options for frame ${item.id}`}><MoreHorizontal size={17} /></button></div>
+            <div className="history-frame-meta"><div><span className="mono">{item.date} · FRAME {item.id}</span><h3>{item.vibe}</h3></div><button className="more-button" aria-label={`Delete frame ${item.id}`} onClick={(event) => { event.stopPropagation(); onDelete(item.id); }}><MoreHorizontal size={17} /></button></div>
           </motion.article>
         ))}
       </div>
@@ -527,6 +587,7 @@ export default function Home() {
   const [stage, setStage] = useState<Stage>("home");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<number | null>(null);
   const [fileName, setFileName] = useState("frame_014.jpg");
   const [dragActive, setDragActive] = useState(false);
   const [analysisIndex, setAnalysisIndex] = useState(0);
@@ -535,13 +596,34 @@ export default function Home() {
   const [category, setCategory] = useState("");
   const [liveResult, setLiveResult] = useState<FitCheckResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const { user } = useAuth();
   const analyzeFit = trpc.fitCheck.analyze.useMutation();
+  const analyzeAndPersist = trpc.fitCheck.analyzeAndPersist.useMutation();
+  const deleteOutfit = trpc.fitCheck.delete.useMutation();
+  const trpcUtils = trpc.useUtils();
+  const historyInput = useMemo(() => ({ limit: 24, offset: 0 }), []);
+  const historyQuery = trpc.fitCheck.history.useQuery(historyInput, { enabled: Boolean(user), retry: false });
+  const selectedHistoryInput = useMemo(() => ({ outfitId: selectedHistoryId ?? 0 }), [selectedHistoryId]);
+  const selectedHistoryQuery = trpc.fitCheck.get.useQuery(selectedHistoryInput, { enabled: Boolean(user && selectedHistoryId), retry: false });
+  const persistedHistory = mapPersistedHistory((historyQuery.data ?? []) as PersistedHistoryRow[]);
+  const visibleHistory = user ? persistedHistory : demoHistoryItems;
   const analysisRequestRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const reducedMotion = useReducedMotion();
 
   const photo = previewUrl ?? HERO_IMAGE;
+
+  useEffect(() => {
+    if (stage !== "history" || !selectedHistoryId || !selectedHistoryQuery.data) return;
+    const row = selectedHistoryQuery.data as PersistedHistoryRow;
+    const result = persistedRowToResult(row);
+    if (!result) return;
+    setPreviewUrl(row.outfit.imageUrl);
+    setLiveResult(result);
+    setSaved(true);
+    setStage("results");
+  }, [stage, selectedHistoryId, selectedHistoryQuery.data]);
 
   useEffect(() => {
     if (stage !== "analyzing") return;
@@ -623,7 +705,9 @@ export default function Home() {
       const imageDataUrl = selectedFile ? await fileToDataUrl(selectedFile) : await urlToDataUrl(photo);
       const uploadDuration = performance.now() - uploadStartedAt;
       const geminiStartedAt = performance.now();
-      const result = await analyzeFit.mutateAsync({ imageDataUrl, category: category || undefined });
+      const result = user
+        ? (await analyzeAndPersist.mutateAsync({ imageDataUrl, category: category || undefined, requestId: crypto.randomUUID(), originalName: fileName })).result
+        : await analyzeFit.mutateAsync({ imageDataUrl, category: category || undefined });
       const geminiDuration = performance.now() - geminiStartedAt;
       const totalDuration = performance.now() - totalStartedAt;
       if (import.meta.env.DEV) {
@@ -631,6 +715,7 @@ export default function Home() {
       }
       if (!isCurrentAnalysisRequest(analysisRequestRef.current, requestId)) return;
       setLiveResult(result);
+      if (user) void trpcUtils.fitCheck.history.invalidate();
       setStage("results");
     } catch (error) {
       if (!isCurrentAnalysisRequest(analysisRequestRef.current, requestId)) return;
@@ -639,6 +724,29 @@ export default function Home() {
       setStage("preview");
       toast("Fit check couldn’t finish.", { description: message });
     }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!user) {
+      toast("Sign in to manage your archive.", { description: "Your saved fits are private to your account." });
+      return;
+    }
+    try {
+      await deleteOutfit.mutateAsync({ outfitId: Number.parseInt(id, 10) });
+      await historyQuery.refetch();
+      toast("Fit removed from your archive.");
+    } catch (error) {
+      toast("Couldn’t remove that fit.", { description: error instanceof Error ? error.message : "Try again." });
+    }
+  };
+
+  const handleSave = () => {
+    if (!user) {
+      toast("Sign in to save this fit.", { description: "Your archive is private to your account." });
+      return;
+    }
+    setSaved(true);
+    toast("Fit saved to your archive.");
   };
 
   const share = async () => {
@@ -657,20 +765,21 @@ export default function Home() {
         <button className="brand-button" onClick={startOver} aria-label="FitCheck home"><FitMark /></button>
         {stage !== "home" && <nav className="topnav" aria-label="Primary navigation">
           <button className={stage !== "history" ? "is-active" : ""} onClick={startOver}>Workbench</button>
-          <button className={stage === "history" ? "is-active" : ""} onClick={() => setStage("history")}>Archive <span className="nav-count">14</span></button>
+          <button className={stage === "history" ? "is-active" : ""} onClick={() => { setSelectedHistoryId(null); setStage("history"); }}>Archive <span className="nav-count">14</span></button>
         </nav>}
         <div className="topbar-tools">
-          {stage !== "home" && <button className="topbar-new-fit" onClick={() => setStage("preview")}><ImagePlus size={14} /> New fit</button>}
+          {!user && <button className="topbar-new-fit" onClick={() => startLogin()}>Sign in</button>}
+          {user && stage !== "home" && <button className="topbar-new-fit" onClick={() => setStage("preview")}><ImagePlus size={14} /> New fit</button>}
         </div>
       </header>
 
       <main>
         <AnimatePresence mode="wait" initial={false}>
-          {stage === "home" && <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.24 }}><HomeView onDevelop={() => setStage("preview")} onSample={useSample} onHistory={() => setStage("history")} onGallery={() => { setStage("preview"); window.setTimeout(() => inputRef.current?.click(), 0); }} onCamera={() => { setStage("preview"); window.setTimeout(() => cameraInputRef.current?.click(), 0); }} /></motion.div>}
+          {stage === "home" && <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.24 }}><HomeView recentItems={visibleHistory} onDevelop={() => setStage("preview")} onSample={useSample} onHistory={() => { setSelectedHistoryId(null); setStage("history"); }} onGallery={() => { setStage("preview"); window.setTimeout(() => inputRef.current?.click(), 0); }} onCamera={() => { setStage("preview"); window.setTimeout(() => cameraInputRef.current?.click(), 0); }} /></motion.div>}
           {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28 }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onCameraChoose={() => cameraInputRef.current?.click()} onFile={chooseFile} onCameraFile={chooseFile} onDrop={handleDrop} onDevelop={submitForAnalysis} onRetake={() => { setPreviewUrl(null); setFileName("frame_014.jpg"); setCategory(""); }} inputRef={inputRef} cameraInputRef={cameraInputRef} setDragActive={setDragActive} category={category} setCategory={setCategory} analysisError={analysisError} /></motion.div>}
           {stage === "analyzing" && <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}><AnalyzingView photo={photo} messageIndex={analysisIndex} /></motion.div>}
-          {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}><PremiumResultsView photo={photo} result={liveResult} saved={saved} onSave={() => { setSaved(true); toast("Fit saved to your archive."); }} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
-          {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><HistoryView onBack={startOver} onDevelop={() => setStage("preview")} /></motion.div>}
+          {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}><PremiumResultsView photo={photo} result={liveResult} saved={saved} onSave={handleSave} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
+          {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><HistoryView items={visibleHistory} onBack={startOver} onDevelop={() => setStage("preview")} onDelete={handleDelete} onSelect={(id) => { if (!user) { toast("Sign in to open saved fits.", { description: "Your archive is private to your account." }); return; } setSelectedHistoryId(Number.parseInt(id, 10)); }} /></motion.div>}
         </AnimatePresence>
       </main>
 

@@ -107,3 +107,11 @@ The restyled upload screen displays the sample outfit prominently inside a white
 ## 2026-08-26 editorial results validation
 
 The sample analysis still reaches the results screen after the visual rewrite. The restyled result uses the uploaded outfit as the hero, a thin accent-blue score ring and Manrope score, a restrained breakdown with thin progress lines, short AI feedback, and a soft-blue `One thing I’d change` card. The live result rendered 8.2/10 with the updated sentence-case labels and preserved Try another fit, Share my score, and Save fit actions.
+
+## 2026-08-26 authenticated persistence validation
+
+A signed-in session ran the sample image through Gemini and received a completed 8.2/10 analysis. The completed outfit row and linked analysis were confirmed in the database. After refreshing the app, Archive loaded the persisted card; opening it invoked the protected get procedure and rendered the stored image and analysis. After explicit confirmation, the outfit was deleted, Archive showed `No saved fits yet` after deletion, and database checks returned zero outfit and analysis rows for the test record. The built-in storage helper does not expose hard object deletion, so database deletion removes the app reference while the managed object remains subject to platform storage lifecycle policies.
+
+## 2026-08-26 authenticated real gallery persistence validation
+
+In a signed-in session, a real `File` selected through the gallery input was submitted as a blob-backed image and completed Gemini analysis at 8.0/10. After refresh, the persisted real-upload card appeared in Archive and opened through the protected `fitCheck.get` procedure with the stored image and analysis. After explicit confirmation, the record was deleted. Archive showed no saved fits after refresh, the database returned no outfit or analysis rows, and a direct authenticated `fitCheck.get` request for the deleted ID returned HTTP 200 with `json: null`. The app-level deletion path is verified; the configured storage helper still does not expose hard object deletion, so the managed image object remains subject to platform storage lifecycle policies.
