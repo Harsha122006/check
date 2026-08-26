@@ -1,10 +1,9 @@
-# Fit Check dark redesign checklist
+# Fit Check opening screen revision
 
-- [x] Preserve upload, camera-roll, camera capture, drag-drop, sample, analyzing, results, save, share, and history flows.
-- [x] Replace the current light-table palette with the requested dark token system.
-- [x] Update typography to Inter throughout with stronger hierarchy.
-- [x] Simplify each screen around one obvious primary action.
-- [x] Rewrite generic and technical copy into concise, natural fashion-focused language.
-- [x] Rework score cards, bubbles, buttons, navigation, and spacing for a premium mobile-first feel.
-- [x] Verify responsive states and core interactions without removing existing functionality.
+- [x] Keep all non-home functionality and navigation logic intact.
+- [x] Replace the home headline and subtext with the requested concise copy.
+- [x] Reduce the opening screen to logo, headline, one CTA, quiet photo options, and Recent Fits.
+- [x] Make “CHECK MY FIT →” the single visually dominant action.
+- [x] Add compact recent outfit cards with image, score, and short verdict metadata.
+- [x] Verify the opening screen at desktop and mobile widths.
 - [x] Run final typecheck/build and save a new checkpoint.

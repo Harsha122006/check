@@ -126,39 +126,59 @@ function HomeView({
   onDevelop,
   onSample,
   onHistory,
+  onGallery,
+  onCamera,
 }: {
   onDevelop: () => void;
   onSample: () => void;
   onHistory: () => void;
+  onGallery: () => void;
+  onCamera: () => void;
 }) {
   return (
     <section className="home-view">
       <div className="home-copy">
         <div className="eyebrow-row">
           <span className="red-dot" />
-          <span>STYLE CHECK / INSTANT READ</span>
+          <span>FIT CHECK / PERSONAL STYLE READ</span>
         </div>
         <h1>
-          Check the fit
+          What’s the fit
           <br />
-          <em>before you post.</em>
+          <em>today?</em>
         </h1>
         <p className="home-intro">
-          Get a quick, honest read on your outfit before it leaves the mirror.
+          Show us your outfit. We’ll tell you what works.
         </p>
         <div className="home-actions">
           <button className="btn btn--red" onClick={onDevelop}>
-            Check my outfit <ArrowUpRight size={17} strokeWidth={2.4} />
+            CHECK MY FIT <ArrowUpRight size={17} strokeWidth={2.4} />
           </button>
           <button className="text-button" onClick={onSample}>
-            <span className="button-under">Use a sample</span>
+            <span className="button-under">Try a sample</span>
             <ChevronRight size={15} />
           </button>
         </div>
-        <p className="privacy-note">
-          <Sparkles size={13} /> Your photo stays private on this device. AI only reads the outfit.
-        </p>
+        <div className="home-photo-options" aria-label="Choose how to add your outfit">
+          <button onClick={onCamera}><Camera size={15} /> Take a photo</button>
+          <span className="option-divider">or</span>
+          <button onClick={onGallery}><FolderOpen size={15} /> Choose from gallery</button>
+        </div>
       </div>
+
+      <section className="recent-fits" aria-labelledby="recent-fits-title">
+        <div className="recent-heading"><h2 id="recent-fits-title">Recent Fits</h2><button className="recent-see-all" onClick={onHistory}>See all <ArrowUpRight size={14} /></button></div>
+        <div className="recent-fit-list">
+          {historyItems.slice(0, 3).map((item) => (
+            <button className="recent-fit-card" key={item.id} onClick={onHistory}>
+              <img src={item.image} alt="" />
+              <span className="recent-fit-score">{item.score}</span>
+              <span className="recent-fit-info"><strong>{item.score === "8.7" ? "Great fit" : "Saved look"}</strong><small>{item.vibe} · {item.date}</small></span>
+              <ChevronRight size={15} />
+            </button>
+          ))}
+        </div>
+      </section>
 
       <div className="hero-workbench">
         <div className="workbench-index">
@@ -540,18 +560,18 @@ export default function Home() {
     <div className="fitcheck-shell">
       <header className="topbar">
         <button className="brand-button" onClick={startOver} aria-label="FitCheck home"><FitMark /></button>
-        <nav className="topnav" aria-label="Primary navigation">
-          <button className={stage === "home" ? "is-active" : ""} onClick={startOver}>Workbench</button>
+        {stage !== "home" && <nav className="topnav" aria-label="Primary navigation">
+          <button className={stage !== "history" ? "is-active" : ""} onClick={startOver}>Workbench</button>
           <button className={stage === "history" ? "is-active" : ""} onClick={() => setStage("history")}>Archive <span className="nav-count">14</span></button>
-        </nav>
+        </nav>}
         <div className="topbar-tools">
-          <button className="topbar-new-fit" onClick={() => setStage("preview")}><ImagePlus size={14} /> New fit</button>
+          {stage !== "home" && <button className="topbar-new-fit" onClick={() => setStage("preview")}><ImagePlus size={14} /> New fit</button>}
         </div>
       </header>
 
       <main>
         <AnimatePresence mode="wait" initial={false}>
-          {stage === "home" && <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.24 }}><HomeView onDevelop={() => setStage("preview")} onSample={useSample} onHistory={() => setStage("history")} /></motion.div>}
+          {stage === "home" && <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.24 }}><HomeView onDevelop={() => setStage("preview")} onSample={useSample} onHistory={() => setStage("history")} onGallery={() => { setStage("preview"); window.setTimeout(() => inputRef.current?.click(), 0); }} onCamera={() => { setStage("preview"); window.setTimeout(() => cameraInputRef.current?.click(), 0); }} /></motion.div>}
           {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28 }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onCameraChoose={() => cameraInputRef.current?.click()} onFile={chooseFile} onCameraFile={chooseFile} onDrop={handleDrop} onDevelop={() => setStage("analyzing")} onRetake={() => { setPreviewUrl(null); setFileName("frame_014.jpg"); }} inputRef={inputRef} cameraInputRef={cameraInputRef} setDragActive={setDragActive} /></motion.div>}
           {stage === "analyzing" && <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}><AnalyzingView photo={photo} messageIndex={analysisIndex} /></motion.div>}
           {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}><ResultsView photo={photo} score={score} saved={saved} onSave={() => { setSaved(true); toast("Fit saved to your archive."); }} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}

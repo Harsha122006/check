@@ -19,3 +19,6 @@ Dark redesign flow check: the Workbench → Use a sample path still reaches the 
 
 
 Dark redesign results check: the preserved sample flow reaches the analysis state and then the redesigned results screen without runtime errors. Results now read as a premium dark card with the lime circular 8.7 score, mint/lime/sky score bubbles, indigo result headline, lime progress bars, and concise fashion-focused copy. Existing save, share, and develop-another actions remain present.
+
+
+Opening-screen revision validation: the home route now presents only the Fit Check brand, “What’s the fit today?”, the requested subtext, the lime “CHECK MY FIT” primary CTA, quieter Take a photo / Choose from gallery options, and compact Recent Fits. Desktop and 375px mobile captures show the CTA is dominant and the screen is no longer overloaded. Non-home routes remain unchanged in structure and core functionality.
