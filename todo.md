@@ -1,10 +1,12 @@
-# Fit Check upload screen revision
+# Fit Check results screen revision
 
-- [x] Keep existing file, camera, gallery, drag-drop, preview, analysis, and results handlers intact.
-- [x] Replace upload copy with “Check your fit” and the requested subtext.
-- [x] Make Take a photo and Choose from gallery clear, large, and visually distinct.
-- [x] Show large selected-image preview with “Looking good already 👀”.
-- [x] Add optional outfit category chips without blocking submission.
-- [x] Make “GET MY FIT SCORE →” the only dominant submit action.
-- [x] Verify empty, selected, retake, category, and submit states on mobile and desktop.
+- [x] Preserve existing score, breakdown, feedback, save, share, retry, and analysis logic.
+- [x] Make the uploaded outfit photo the prominent top visual.
+- [x] Rebuild the score hero as YOUR FIT SCORE with large 8.7 /10 treatment and subtle circular progress.
+- [x] Add a short score-dependent AI verdict without generic praise.
+- [x] Simplify category breakdown into THE BREAKDOWN with clear bars and 4–5 understandable categories.
+- [x] Rewrite feedback as WHAT WE THINK with concise specific outfit observations.
+- [x] Add LEVEL IT UP with one or two actionable suggestions.
+- [x] Rework bottom actions to TRY ANOTHER FIT and SHARE MY SCORE.
+- [x] Verify shareable composition, responsive behavior, and reduced-motion support.
 - [x] Run final typecheck/build and save a new checkpoint.

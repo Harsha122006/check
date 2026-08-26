@@ -577,12 +577,95 @@ export default function Home() {
           {stage === "home" && <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.24 }}><HomeView onDevelop={() => setStage("preview")} onSample={useSample} onHistory={() => setStage("history")} onGallery={() => { setStage("preview"); window.setTimeout(() => inputRef.current?.click(), 0); }} onCamera={() => { setStage("preview"); window.setTimeout(() => cameraInputRef.current?.click(), 0); }} /></motion.div>}
           {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28 }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onCameraChoose={() => cameraInputRef.current?.click()} onFile={chooseFile} onCameraFile={chooseFile} onDrop={handleDrop} onDevelop={() => setStage("analyzing")} onRetake={() => { setPreviewUrl(null); setFileName("frame_014.jpg"); setCategory(""); }} inputRef={inputRef} cameraInputRef={cameraInputRef} setDragActive={setDragActive} category={category} setCategory={setCategory} /></motion.div>}
           {stage === "analyzing" && <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}><AnalyzingView photo={photo} messageIndex={analysisIndex} /></motion.div>}
-          {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}><ResultsView photo={photo} score={score} saved={saved} onSave={() => { setSaved(true); toast("Fit saved to your archive."); }} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
+          {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}><PremiumResultsView photo={photo} score={score} saved={saved} onSave={() => { setSaved(true); toast("Fit saved to your archive."); }} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
           {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><HistoryView onBack={startOver} onDevelop={() => setStage("preview")} /></motion.div>}
         </AnimatePresence>
       </main>
 
       <footer className="site-footer"><span className="mono">FITCHECK / 2026</span><span className="footer-rule" /><span className="mono">CLOTHES ONLY. NEVER THE PERSON.</span><button className="footer-privacy">Privacy <ChevronRight size={13} /></button></footer>
     </div>
+  );
+}
+
+
+function PremiumResultsView({
+  photo,
+  score,
+  saved,
+  onSave,
+  onShare,
+  onAgain,
+}: {
+  photo: string;
+  score: number;
+  saved: boolean;
+  onSave: () => void;
+  onShare: () => void;
+  onAgain: () => void;
+}) {
+  const verdict = score >= 8.5 ? "Looking clean." : score >= 7.5 ? "Almost there." : "One tweak away.";
+  const breakdown = [
+    { label: "Outfit", score: 9.0 },
+    { label: "Colors", score: 8.5 },
+    { label: "Fit", score: 8.2 },
+    { label: "Shoes", score: 8.8 },
+    { label: "Vibe", score: 9.0 },
+  ];
+
+  return (
+    <section className="premium-results">
+      <div className="premium-results-header">
+        <span className="mono">FIT CHECK / YOUR RESULT</span>
+        <span className="mono">FIT Nº 014</span>
+      </div>
+      <div className="result-hero-card">
+        <div className="result-hero-photo"><img src={photo} alt="Your uploaded outfit" /><span className="result-photo-label">YOUR OUTFIT</span></div>
+        <div className="result-score-panel">
+          <span className="mono score-kicker">YOUR FIT SCORE</span>
+          <div className="premium-score-wrap">
+            <svg className="premium-score-ring" viewBox="0 0 210 210" aria-hidden="true">
+              <circle className="premium-ring-track" cx="105" cy="105" r="88" pathLength="1" />
+              <motion.circle className="premium-ring-progress" cx="105" cy="105" r="88" pathLength="1" initial={{ strokeDashoffset: 1 }} animate={{ strokeDashoffset: 1 - score / 10 }} transition={{ duration: 1, ease: "easeOut", delay: .1 }} />
+            </svg>
+            <div className="premium-score-number"><strong>{score.toFixed(1)}</strong><span>/10</span></div>
+          </div>
+          <h2 className="premium-verdict">{verdict}</h2>
+          <p className="premium-score-note">Your color balance and silhouette are doing the most.</p>
+        </div>
+      </div>
+
+      <div className="premium-result-grid">
+        <div className="premium-main-column">
+          <section className="result-section breakdown-card">
+            <div className="result-section-heading"><div><span className="mono">01 / QUICK READ</span><h3>THE BREAKDOWN</h3></div><span className="section-badge">5 signals</span></div>
+            <div className="breakdown-list">
+              {breakdown.map((item, index) => (
+                <motion.div className="breakdown-item" key={item.label} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * .06 }}>
+                  <div className="breakdown-label"><span>{item.label}</span><strong>{item.score.toFixed(1)}</strong></div>
+                  <div className="breakdown-track"><motion.span initial={{ width: 0 }} animate={{ width: `${item.score * 10}%` }} transition={{ delay: .15 + index * .06, duration: .5 }} /></div>
+                </motion.div>
+              ))}
+            </div>
+          </section>
+
+          <section className="result-section feedback-card">
+            <span className="mono">02 / THE HUMAN READ</span>
+            <h3>WHAT WE THINK</h3>
+            <p>The oversized charcoal layer and relaxed olive trousers create a clean vertical line. The cream sneakers keep the contrast balanced, while the tote adds a considered finish without overdoing it.</p>
+          </section>
+        </div>
+
+        <aside className="premium-side-column">
+          <section className="level-up-card"><span className="mono">LEVEL IT UP</span><h3>One small move.</h3><p>Push the sleeves once to show a sliver of the tee and break up the layers.</p><span className="level-up-arrow">↗</span></section>
+          <div className="result-meta-card"><span className="mono">STYLE SIGNAL</span><strong>clean utility</strong><span className="mono">FULL OUTFIT / MIRROR CAPTURE</span></div>
+        </aside>
+      </div>
+
+      <div className="premium-result-actions">
+        <button className="btn btn--red premium-primary-action" onClick={onAgain}>TRY ANOTHER FIT <ArrowUpRight size={17} /></button>
+        <button className="btn btn--quiet premium-share-action" onClick={onShare}><Share2 size={16} /> SHARE MY SCORE</button>
+        <button className="save-link" onClick={onSave}>{saved ? <Check size={14} /> : <Bookmark size={14} />} {saved ? "Saved" : "Save fit"}</button>
+      </div>
+    </section>
   );
 }
