@@ -26,6 +26,7 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
 
 type Stage = "home" | "preview" | "analyzing" | "results" | "history";
 
@@ -34,6 +35,16 @@ type Category = {
   key: string;
   score: number;
   note: string;
+};
+
+type FitCheckResult = {
+  overall_score: number;
+  scores: { outfit: number; color: number; fit: number; shoes: number; styling: number };
+  verdict: string;
+  strengths: string[];
+  improvements: string[];
+  summary: string;
+  confidence: number;
 };
 
 const HERO_IMAGE = "/manus-storage/fitcheck-hero_ef1eb9dc.jpg";
@@ -62,6 +73,32 @@ const analysisMessages = [
   "Checking the occasion signal…",
   "Pulling the useful notes…",
 ];
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const maxDimension = 768;
+      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(objectUrl);
+      const compressed = canvas.toDataURL("image/jpeg", 0.58);
+      resolve(compressed.length > 700_000 ? canvas.toDataURL("image/jpeg", 0.42) : compressed);
+    };
+    image.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("IMAGE_READ_FAILED")); };
+    image.src = objectUrl;
+  });
+}
+
+async function urlToDataUrl(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("IMAGE_READ_FAILED");
+  return fileToDataUrl(new File([await response.blob()], "fitcheck-sample.jpg", { type: "image/jpeg" }));
+}
 
 function FitMark({ compact = false }: { compact?: boolean }) {
   return (
@@ -235,6 +272,7 @@ function PreviewView({
   setDragActive,
   category,
   setCategory,
+  analysisError,
 }: {
   photo: string | null;
   fileName: string;
@@ -251,6 +289,7 @@ function PreviewView({
   setDragActive: (value: boolean) => void;
   category: string;
   setCategory: (value: string) => void;
+  analysisError: string | null;
 }) {
   return (
     <section className="upload-screen">
@@ -277,6 +316,13 @@ function PreviewView({
               <h2>Looking good already 👀</h2>
               <p>Tell us the vibe, or skip it and get your score.</p>
             </div>
+            {analysisError && (
+              <div className="analysis-error" role="alert">
+                <strong>We couldn’t read that fit.</strong>
+                <span>{analysisError}</span>
+                <button type="button" onClick={onDevelop}>Try again</button>
+              </div>
+            )}
             <div className="category-picker">
               <span className="category-label">What kind of fit is this? <small>Optional</small></span>
               <div className="category-chips">
@@ -472,12 +518,16 @@ function HistoryView({ onBack, onDevelop }: { onBack: () => void; onDevelop: () 
 export default function Home() {
   const [stage, setStage] = useState<Stage>("home");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("frame_014.jpg");
   const [dragActive, setDragActive] = useState(false);
   const [analysisIndex, setAnalysisIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [saved, setSaved] = useState(false);
   const [category, setCategory] = useState("");
+  const [liveResult, setLiveResult] = useState<FitCheckResult | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const analyzeFit = trpc.fitCheck.analyze.useMutation();
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const reducedMotion = useReducedMotion();
@@ -486,13 +536,9 @@ export default function Home() {
 
   useEffect(() => {
     if (stage !== "analyzing") return;
-    if (reducedMotion) {
-      setStage("results");
-      return;
-    }
+    if (reducedMotion) return;
     const timer = window.setInterval(() => setAnalysisIndex((current) => (current + 1) % analysisMessages.length), 620);
-    const finish = window.setTimeout(() => setStage("results"), 2900);
-    return () => { window.clearInterval(timer); window.clearTimeout(finish); };
+    return () => window.clearInterval(timer);
   }, [stage, reducedMotion]);
 
   useEffect(() => {
@@ -524,8 +570,10 @@ export default function Home() {
     }
     if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(file));
+    setSelectedFile(file);
     setFileName(file.name.toUpperCase());
     setSaved(false);
+    setLiveResult(null);
     setStage("preview");
   };
 
@@ -537,16 +585,37 @@ export default function Home() {
 
   const useSample = () => {
     setPreviewUrl(HERO_IMAGE);
+    setSelectedFile(null);
     setFileName("SAMPLE_FRAME_014.JPG");
     setSaved(false);
+    setLiveResult(null);
     setStage("preview");
   };
 
   const startOver = () => {
     setStage("home");
     setPreviewUrl(null);
+    setSelectedFile(null);
     setFileName("frame_014.jpg");
     setSaved(false);
+    setLiveResult(null);
+  };
+
+  const submitForAnalysis = async () => {
+    setAnalysisIndex(0);
+    setAnalysisError(null);
+    setStage("analyzing");
+    try {
+      const imageDataUrl = selectedFile ? await fileToDataUrl(selectedFile) : await urlToDataUrl(photo);
+      const result = await analyzeFit.mutateAsync({ imageDataUrl, category: category || undefined });
+      setLiveResult(result);
+      setStage("results");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not read this fit. Please try again.";
+      setAnalysisError(message);
+      setStage("preview");
+      toast("Fit check couldn’t finish.", { description: message });
+    }
   };
 
   const share = async () => {
@@ -575,9 +644,9 @@ export default function Home() {
       <main>
         <AnimatePresence mode="wait" initial={false}>
           {stage === "home" && <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.24 }}><HomeView onDevelop={() => setStage("preview")} onSample={useSample} onHistory={() => setStage("history")} onGallery={() => { setStage("preview"); window.setTimeout(() => inputRef.current?.click(), 0); }} onCamera={() => { setStage("preview"); window.setTimeout(() => cameraInputRef.current?.click(), 0); }} /></motion.div>}
-          {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28 }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onCameraChoose={() => cameraInputRef.current?.click()} onFile={chooseFile} onCameraFile={chooseFile} onDrop={handleDrop} onDevelop={() => setStage("analyzing")} onRetake={() => { setPreviewUrl(null); setFileName("frame_014.jpg"); setCategory(""); }} inputRef={inputRef} cameraInputRef={cameraInputRef} setDragActive={setDragActive} category={category} setCategory={setCategory} /></motion.div>}
+          {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28 }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onCameraChoose={() => cameraInputRef.current?.click()} onFile={chooseFile} onCameraFile={chooseFile} onDrop={handleDrop} onDevelop={submitForAnalysis} onRetake={() => { setPreviewUrl(null); setFileName("frame_014.jpg"); setCategory(""); }} inputRef={inputRef} cameraInputRef={cameraInputRef} setDragActive={setDragActive} category={category} setCategory={setCategory} analysisError={analysisError} /></motion.div>}
           {stage === "analyzing" && <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}><AnalyzingView photo={photo} messageIndex={analysisIndex} /></motion.div>}
-          {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}><PremiumResultsView photo={photo} score={score} saved={saved} onSave={() => { setSaved(true); toast("Fit saved to your archive."); }} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
+          {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}><PremiumResultsView photo={photo} result={liveResult} saved={saved} onSave={() => { setSaved(true); toast("Fit saved to your archive."); }} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
           {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><HistoryView onBack={startOver} onDevelop={() => setStage("preview")} /></motion.div>}
         </AnimatePresence>
       </main>
@@ -590,26 +659,27 @@ export default function Home() {
 
 function PremiumResultsView({
   photo,
-  score,
+  result,
   saved,
   onSave,
   onShare,
   onAgain,
 }: {
   photo: string;
-  score: number;
+  result: FitCheckResult | null;
   saved: boolean;
   onSave: () => void;
   onShare: () => void;
   onAgain: () => void;
 }) {
-  const verdict = score >= 8.5 ? "Looking clean." : score >= 7.5 ? "Almost there." : "One tweak away.";
+  const fallback: FitCheckResult = { overall_score: 8.7, scores: { outfit: 9.0, color: 8.5, fit: 8.2, shoes: 8.8, styling: 9.0 }, verdict: "Looking clean.", strengths: ["Strong color coordination"], improvements: ["Try a cleaner sneaker"], summary: "The outfit has a strong casual direction with good color balance.", confidence: 0.86 };
+  const live = result ?? fallback;
   const breakdown = [
-    { label: "Outfit", score: 9.0 },
-    { label: "Colors", score: 8.5 },
-    { label: "Fit", score: 8.2 },
-    { label: "Shoes", score: 8.8 },
-    { label: "Vibe", score: 9.0 },
+    { label: "Outfit", score: live.scores.outfit },
+    { label: "Colors", score: live.scores.color },
+    { label: "Fit", score: live.scores.fit },
+    { label: "Shoes", score: live.scores.shoes },
+    { label: "Styling", score: live.scores.styling },
   ];
 
   return (
@@ -625,12 +695,12 @@ function PremiumResultsView({
           <div className="premium-score-wrap">
             <svg className="premium-score-ring" viewBox="0 0 210 210" aria-hidden="true">
               <circle className="premium-ring-track" cx="105" cy="105" r="88" pathLength="1" />
-              <motion.circle className="premium-ring-progress" cx="105" cy="105" r="88" pathLength="1" initial={{ strokeDashoffset: 1 }} animate={{ strokeDashoffset: 1 - score / 10 }} transition={{ duration: 1, ease: "easeOut", delay: .1 }} />
+              <motion.circle className="premium-ring-progress" cx="105" cy="105" r="88" pathLength="1" initial={{ strokeDashoffset: 1 }} animate={{ strokeDashoffset: 1 - live.overall_score / 10 }} transition={{ duration: 1, ease: "easeOut", delay: .1 }} />
             </svg>
-            <div className="premium-score-number"><strong>{score.toFixed(1)}</strong><span>/10</span></div>
+            <div className="premium-score-number"><strong>{live.overall_score.toFixed(1)}</strong><span>/10</span></div>
           </div>
-          <h2 className="premium-verdict">{verdict}</h2>
-          <p className="premium-score-note">Your color balance and silhouette are doing the most.</p>
+          <h2 className="premium-verdict">{live.verdict}</h2>
+          <p className="premium-score-note">{live.summary}</p>
         </div>
       </div>
 
@@ -651,13 +721,13 @@ function PremiumResultsView({
           <section className="result-section feedback-card">
             <span className="mono">02 / THE HUMAN READ</span>
             <h3>WHAT WE THINK</h3>
-            <p>The oversized charcoal layer and relaxed olive trousers create a clean vertical line. The cream sneakers keep the contrast balanced, while the tote adds a considered finish without overdoing it.</p>
+            <p>{live.summary}</p>
           </section>
         </div>
 
         <aside className="premium-side-column">
-          <section className="level-up-card"><span className="mono">LEVEL IT UP</span><h3>One small move.</h3><p>Push the sleeves once to show a sliver of the tee and break up the layers.</p><span className="level-up-arrow">↗</span></section>
-          <div className="result-meta-card"><span className="mono">STYLE SIGNAL</span><strong>clean utility</strong><span className="mono">FULL OUTFIT / MIRROR CAPTURE</span></div>
+          <section className="level-up-card"><span className="mono">LEVEL IT UP</span><h3>One small move.</h3><p>{live.improvements[0] ?? "Try one small styling adjustment and check the balance again."}</p><span className="level-up-arrow">↗</span></section>
+          <div className="result-meta-card"><span className="mono">WHAT’S WORKING</span><strong>{live.strengths[0] ?? "Strong visual balance"}</strong><span className="mono">CONFIDENCE / {Math.round(live.confidence * 100)}%</span></div>
         </aside>
       </div>
 

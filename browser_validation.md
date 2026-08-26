@@ -34,3 +34,6 @@ Optional category validation: selecting Casual visibly toggles the chip into the
 
 
 Results-screen revision validation: the existing sample analysis reaches the new photo-first result screen without runtime errors. The live screen shows the uploaded outfit prominently, an animated lime circular 8.7 /10 hero, score-dependent “Looking clean.” verdict, compact THE BREAKDOWN bars, WHAT WE THINK specific outfit feedback, LEVEL IT UP guidance, and TRY ANOTHER FIT / SHARE MY SCORE / Save fit actions.
+
+
+Gemini integration validation: the live preview accepted the sample outfit after client-side compression, entered the existing analyzing state, and returned structured Gemini output to the existing results screen. The observed result rendered an 8.3/10 score, category breakdown values, a concise verdict, summary, improvement suggestion, and confidence percentage. A prior oversized request returned an inline error with a visible Try again action; the compressed retry path then completed successfully.
