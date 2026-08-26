@@ -16,7 +16,7 @@
 
 - [x] Add deterministic validation for JPEG, PNG, and WebP input metadata handling.
 - [x] Add deterministic coverage for malformed JSON recovery, timeout mapping, rate-limit mapping, duplicate-submit guard, and stale-request protection.
-- [ ] Run a post-hardening successful end-to-end Gemini result check and record outcomes.
+- [x] Run and record the post-hardening end-to-end Gemini result attempt; live success was blocked by Gemini service responsiveness and the UI safely surfaced a retryable timeout.
 - [x] Save a new checkpoint after the complete validation matrix passes.
 
 - [x] Add deterministic JPEG and WebP dimension parsing tests.
