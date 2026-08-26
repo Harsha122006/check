@@ -1,6 +1,6 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { z } from "zod";
 import { ENV } from "./_core/env";
+import { invokeLLM } from "./_core/llm";
 
 const MAX_IMAGE_DATA_LENGTH = 750_000;
 const CATEGORY_KEYS = ["outfit", "color", "fit", "shoes", "styling"] as const;
@@ -53,36 +53,36 @@ export const fitCheckResultSchema = z.object({
 export type FitCheckResult = z.infer<typeof fitCheckResultSchema>;
 
 const nullableScore = {
-  anyOf: [{ type: Type.NUMBER }, { type: Type.NULL }],
+  anyOf: [{ type: "number" }, { type: "null" }],
   description: "A score from 0 to 10, or null when the category is not visible enough to evaluate.",
 };
 
 const categoryResponseSchema = {
-  type: Type.OBJECT,
+  type: "object",
   properties: {
     score: nullableScore,
-    visibility: { type: Type.STRING, enum: ["visible", "not_visible", "unclear"] },
-    reason: { type: Type.STRING },
+    visibility: { type: "string", enum: ["visible", "not_visible", "unclear"] },
+    reason: { type: "string" },
   },
   required: ["score", "visibility", "reason"],
 };
 
 const fitCheckResponseSchema = {
-  type: Type.OBJECT,
+  type: "object",
   properties: {
-    overall_score: { type: Type.NUMBER, description: "Dynamic weighted score from 0 to 10 using only categories with visibility visible. Use 0 only when image_quality is insufficient." },
-    confidence: { type: Type.NUMBER, description: "Confidence from 0 to 1. Lower it for crop, blur, obstruction, poor lighting, or missing details, but do not fail a usable partial image." },
-    image_quality: { type: Type.STRING, enum: ["good", "usable", "insufficient"] },
+    overall_score: { type: "number", description: "Dynamic weighted score from 0 to 10 using only categories with visibility visible. Use 0 only when image_quality is insufficient." },
+    confidence: { type: "number", description: "Confidence from 0 to 1. Lower it for crop, blur, obstruction, poor lighting, or missing details, but do not fail a usable partial image." },
+    image_quality: { type: "string", enum: ["good", "usable", "insufficient"] },
     coverage: {
-      type: Type.OBJECT,
+      type: "object",
       properties: {
-        visible_categories: { type: Type.ARRAY, items: { type: Type.STRING, enum: CATEGORY_KEYS } },
-        unavailable_categories: { type: Type.ARRAY, items: { type: Type.STRING, enum: CATEGORY_KEYS } },
+        visible_categories: { type: "array", items: { type: "string", enum: CATEGORY_KEYS } },
+        unavailable_categories: { type: "array", items: { type: "string", enum: CATEGORY_KEYS } },
       },
       required: ["visible_categories", "unavailable_categories"],
     },
     scores: {
-      type: Type.OBJECT,
+      type: "object",
       properties: {
         outfit: categoryResponseSchema,
         color: categoryResponseSchema,
@@ -92,10 +92,10 @@ const fitCheckResponseSchema = {
       },
       required: [...CATEGORY_KEYS],
     },
-    verdict: { type: Type.STRING, description: "A short honest verdict, maximum 6 words." },
-    strengths: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Up to three strengths grounded in visible clothing." },
-    improvements: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Up to three constructive improvements grounded in visible clothing." },
-    summary: { type: Type.STRING, description: "A concise summary that mentions unavailable categories when relevant." },
+    verdict: { type: "string", description: "A short honest verdict, maximum 6 words." },
+    strengths: { type: "array", items: { type: "string" }, description: "Up to three strengths grounded in visible clothing." },
+    improvements: { type: "array", items: { type: "string" }, description: "Up to three constructive improvements grounded in visible clothing." },
+    summary: { type: "string", description: "A concise summary that mentions unavailable categories when relevant." },
   },
   required: ["overall_score", "confidence", "image_quality", "coverage", "scores", "verdict", "strengths", "improvements", "summary"],
 };
@@ -209,25 +209,6 @@ function sleep(ms: number, signal?: AbortSignal) {
   });
 }
 
-async function generateWithRetry(ai: GoogleGenAI, request: Parameters<typeof ai.models.generateContent>[0], signal: AbortSignal, diagnostic: Record<string, unknown>) {
-  const maxAttempts = 3;
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    diagnostic.retry_count = attempt;
-    try {
-      const response = await ai.models.generateContent(request);
-      diagnostic.api_status = response.sdkHttpResponse?.responseInternal.status ?? 200;
-      return response;
-    } catch (error) {
-      if (signal.aborted) throw new FitCheckError("REQUEST_CANCELLED", "Request cancelled.", error);
-      diagnostic.api_status = errorStatus(error) ?? "unknown";
-      diagnostic.error_category = classifyGeminiError(error);
-      if (attempt === maxAttempts - 1 || !isRetryableGeminiError(error)) throw error;
-      await sleep(350 * 2 ** attempt, signal);
-    }
-  }
-  throw new Error("GEMINI_REQUEST_FAILED");
-}
-
 export function validateImageDataUrl(imageDataUrl: string) {
   const match = imageDataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!match) throw new FitCheckError("IMAGE_PROBLEM", "Try a clearer photo — we need to be able to see your outfit.");
@@ -239,7 +220,12 @@ export function validateImageDataUrl(imageDataUrl: string) {
 export function parseFitCheckResponse(text: string) {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    const trimmed = text.trim();
+    const unfenced = trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    const start = unfenced.indexOf("{");
+    const end = unfenced.lastIndexOf("}");
+    const candidate = start >= 0 && end > start ? unfenced.slice(start, end + 1) : unfenced;
+    parsed = JSON.parse(candidate);
   } catch (error) {
     throw new FitCheckError("INVALID_GEMINI_RESPONSE", "The fit read came back incomplete.", error);
   }
@@ -282,14 +268,8 @@ export async function analyzeFitWithGemini({ imageDataUrl, category, signal }: {
   };
   logDiagnostic("analysis_start", diagnostic);
 
-  if (!ENV.geminiApiKey) throw new FitCheckError("INVALID_API_KEY", "AI service configuration error.");
-  const ai = new GoogleGenAI({ apiKey: ENV.geminiApiKey });
+  if (!ENV.forgeApiKey) throw new FitCheckError("INVALID_API_KEY", "AI service configuration error.");
   const categoryHint = category ? `The user optionally tagged this look as: ${category}. Use it only as context, not as proof.` : "No outfit category was provided.";
-  const request = {
-    model: ENV.geminiModel,
-    contents: [{ role: "user" as const, parts: [{ inlineData: { mimeType, data } }, { text: `${categoryHint}\nAnalyze this outfit for Fit Check in one pass. Return only the requested structured JSON.` }] }],
-    config: { systemInstruction, responseMimeType: "application/json", responseSchema: fitCheckResponseSchema, temperature: 0.2, abortSignal: signal },
-  };
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ENV.geminiTimeoutMs);
   const onExternalAbort = () => controller.abort();
@@ -298,13 +278,35 @@ export async function analyzeFitWithGemini({ imageDataUrl, category, signal }: {
   try {
     let parsedResult: FitCheckResult | null = null;
     let parseRecoveryCount = 0;
-    const requestConfig = { ...request, config: { ...request.config, abortSignal: controller.signal } };
     while (parseRecoveryCount < 2 && !parsedResult) {
       const geminiStartedAt = performance.now();
-      const response = await generateWithRetry(ai, requestConfig, controller.signal, diagnostic);
+      const response = await invokeLLM({
+        model: ENV.geminiModel,
+        signal: controller.signal,
+        maxTokens: 3200,
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: [
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${data}`, detail: "high" } },
+            { type: "text", text: `${categoryHint}\nAnalyze this outfit for Fit Check in one pass. Return only the requested structured JSON.` },
+          ] },
+        ],
+        responseFormat: { type: "json_schema", json_schema: { name: "fit_check_result", strict: true, schema: fitCheckResponseSchema as Record<string, unknown> } },
+      });
+      diagnostic.retry_count = 0;
+      diagnostic.api_status = 200;
       diagnostic.gemini_request_duration_ms = Number((performance.now() - geminiStartedAt).toFixed(1));
       const parseStartedAt = performance.now();
-      const text = response.text?.trim();
+      const choice = response.choices?.[0];
+      const message = choice?.message;
+      diagnostic.response_keys = Object.keys(response);
+      diagnostic.response_choice_keys = choice ? Object.keys(choice) : undefined;
+      diagnostic.response_message_keys = message ? Object.keys(message) : undefined;
+      diagnostic.response_finish_reason = choice?.finish_reason;
+      const content = message?.content;
+      diagnostic.response_content_type = Array.isArray(content) ? "array" : typeof content;
+      diagnostic.response_content_keys = content && typeof content === "object" && !Array.isArray(content) ? Object.keys(content) : undefined;
+      const text = typeof content === "string" ? content.trim() : content?.filter((part) => part.type === "text").map((part) => part.text).join(" ").trim() ?? "";
       try {
         parsedResult = parseFitCheckResponse(text ?? "");
         diagnostic.parsing_succeeded = true;

@@ -54,3 +54,41 @@ After switching the default model to the documented stable `gemini-3.5-flash-lit
 ## 2026-08-26 post-hardening model check
 
 After the default switched to `gemini-3.5-flash-lite` with `GEMINI_TIMEOUT_MS=8000`, the existing sample flow reached the live analysis screen immediately. The server diagnostic recorded a 576x768 JPEG, 38,924-character payload, model `gemini-3.5-flash-lite`, retry count 2, 8,000 ms timeout, and 8,040.6 ms total duration. The UI returned to preview with the safe “That took longer than expected. Try again.” message and visible retry control; no hanging request or fabricated score was shown. This preview run was limited by Gemini service responsiveness, not a routing or payload-size error.
+
+
+## 2026-08-26 picture-analysis bug diagnosis
+
+The original direct Google SDK path timed out on valid compressed images because it used model IDs not present in the active platform catalog. Switching to the confirmed `gemini-3-flash-preview` model and the platform multimodal helper removed the timeout: live requests returned HTTP 200 in about 1.5 seconds. The remaining failure was a null structured response (`response_content_type: undefined`, `response_content_preview: null`) despite HTTP 200, so the parser received an empty string and returned the safe incomplete-read error. The next fix is to handle the platform’s structured response envelope rather than treating `message.content` as the only possible location.
+
+
+## 2026-08-26 picture-analysis fix diagnosis
+
+The active catalog confirmed `gemini-3-flash-preview` is available. The platform multimodal call returned HTTP 200 in about 1.5 seconds, but FitCheck received no `message.content` because its response schema still used Google SDK enum values such as `Type.OBJECT` and `Type.NUMBER` (`OBJECT`, `NUMBER`) instead of standard JSON Schema values (`object`, `number`). The schema was converted to standard JSON Schema, and the evaluator now uses the preconfigured platform multimodal helper with server-side Forge credentials, preserving the 8-second timeout and abort propagation. A tolerant parser also accepts valid JSON wrapped in markdown fences.
+
+
+## 2026-08-26 standard-schema live validation
+
+After converting the response schema to standard JSON Schema, the live sample flow loads correctly and reaches the submit state. The platform helper is active with `gemini-3-flash-preview`; the timeout budget is now 15 seconds to allow the full structured outfit response to complete. Temporary response previews were removed from diagnostics, leaving only safe response-shape metadata.
+
+
+## 2026-08-26 truncated-response diagnosis
+
+The standard-schema request returned HTTP 200 but ended with `finish_reason: length`; the full outfit result was truncated because `maxTokens` was 1200. The evaluator now allows 3200 output tokens while retaining the 15-second bounded request timeout. This directly addresses the incomplete JSON failure observed after the schema correction.
+
+
+## 2026-08-26 successful picture-analysis validation
+
+The repaired live sample flow now reaches the results screen successfully. The supported `gemini-3-flash-preview` model returned a complete structured response after the standard JSON Schema conversion and 3200-token output budget. FitCheck rendered a grounded 7.9/10 result with visible category scores for outfit, colors, fit, shoes, and styling, a concise verdict, improvement guidance, and confidence. The image path remains compressed, server-side, cancellable, and bounded by the 15-second timeout.
+
+
+## 2026-08-26 real gallery upload validation
+
+A real locally saved `fitcheck-gallery-regression.webp` file was uploaded through the actual hidden gallery file input (`accept=image/*`, second file input). The browser preview changed from the sample storage URL to a blob URL and displayed `FITCHECK-GALLERY-REGRESSION.WEBP`, confirming the selected-file path is active. The first submit click did not trigger because the CTA was below the viewport; the test remains in the selected-upload state and will be completed after bringing the CTA fully into view.
+
+
+The real gallery-selected WebP remains active after scrolling: the preview uses a browser blob URL and displays `FITCHECK-GALLERY-REGRESSION.WEBP`. The lime `GET MY FIT SCORE` CTA is now fully visible and ready for submission.
+
+
+## 2026-08-26 real gallery upload success
+
+The actual gallery-selected WebP file completed the live analysis end to end. Its blob URL remained the submitted image, and the results screen rendered an honest structured 8.3/10 score with five visible categories, grounded earth-tone feedback, improvement guidance, and confidence. This confirms the selected-file path works after the pipeline repair, not only the built-in sample shortcut.

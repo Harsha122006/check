@@ -126,6 +126,11 @@ describe("FitCheck structured response parsing", () => {
     expect(parseWithRecovery(["{bad json", JSON.stringify(base)]).overall_score).toBe(9.9);
   });
 
+  it("accepts valid structured JSON wrapped in a markdown code fence", () => {
+    const fenced = "```json\\n" + JSON.stringify(base) + "\\n```";
+    expect(parseFitCheckResponse(fenced).overall_score).toBe(9.9);
+  });
+
   it("stops recovery after two malformed responses", () => {
     expect(() => parseWithRecovery(["{bad json", "still bad", JSON.stringify(base)])).toThrowError(FitCheckError);
   });

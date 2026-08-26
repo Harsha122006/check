@@ -23,3 +23,7 @@
 - [x] Add deterministic tests for malformed-response recovery, timeout-to-public-error mapping, duplicate-submit suppression, and stale-response ignoring.
 - [x] Record the post-hardening Gemini live timeout as an external service-availability blocker unless a successful results response is observed.
 - [x] Save a fresh checkpoint after the remaining validation work is documented.
+
+- [x] Fix valid uploaded-picture analysis failures and verify the live analysis path reaches results or returns a useful actionable error.
+
+- [x] Verify a real gallery-selected image upload reaches live analysis results end to end after the pipeline fix.
