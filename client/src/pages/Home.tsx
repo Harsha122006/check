@@ -37,14 +37,22 @@ type Category = {
   note: string;
 };
 
+type FitCheckCategory = {
+  score: number | null;
+  visibility: "visible" | "not_visible" | "unclear";
+  reason: string;
+};
+
 type FitCheckResult = {
   overall_score: number;
-  scores: { outfit: number; color: number; fit: number; shoes: number; styling: number };
+  scores: { outfit: FitCheckCategory; color: FitCheckCategory; fit: FitCheckCategory; shoes: FitCheckCategory; styling: FitCheckCategory };
   verdict: string;
   strengths: string[];
   improvements: string[];
   summary: string;
   confidence: number;
+  image_quality: "good" | "usable" | "insufficient";
+  coverage: { visible_categories: string[]; unavailable_categories: string[] };
 };
 
 const HERO_IMAGE = "/manus-storage/fitcheck-hero_ef1eb9dc.jpg";
@@ -68,10 +76,9 @@ const historyItems = [
 ];
 
 const analysisMessages = [
-  "Finding the silhouette…",
-  "Reading color relationships…",
-  "Checking the occasion signal…",
-  "Pulling the useful notes…",
+  "Checking your fit…",
+  "Looking at the details…",
+  "Putting your score together…",
 ];
 
 function fileToDataUrl(file: File) {
@@ -619,7 +626,7 @@ export default function Home() {
   };
 
   const share = async () => {
-    const text = "My fit scored 8.7 on FitCheck — clean utility.";
+    const text = `My fit scored ${liveResult?.overall_score.toFixed(1) ?? "—"} on FitCheck — ${liveResult?.verdict ?? "my latest fit"}.`;
     try {
       await navigator.clipboard?.writeText(text);
       toast("Share note copied.", { description: "The share card flow is ready for your next post." });
@@ -672,14 +679,14 @@ function PremiumResultsView({
   onShare: () => void;
   onAgain: () => void;
 }) {
-  const fallback: FitCheckResult = { overall_score: 8.7, scores: { outfit: 9.0, color: 8.5, fit: 8.2, shoes: 8.8, styling: 9.0 }, verdict: "Looking clean.", strengths: ["Strong color coordination"], improvements: ["Try a cleaner sneaker"], summary: "The outfit has a strong casual direction with good color balance.", confidence: 0.86 };
+  const fallback: FitCheckResult = { overall_score: 8.7, scores: { outfit: { score: 9.0, visibility: "visible", reason: "Visible outfit cohesion." }, color: { score: 8.5, visibility: "visible", reason: "Visible color coordination." }, fit: { score: 8.2, visibility: "visible", reason: "Visible silhouette." }, shoes: { score: 8.8, visibility: "visible", reason: "Footwear is visible." }, styling: { score: 9.0, visibility: "visible", reason: "Visible styling choices." } }, verdict: "Looking clean.", strengths: ["Strong color coordination"], improvements: ["Try a cleaner sneaker"], summary: "The outfit has a strong casual direction with good color balance.", confidence: 0.86, image_quality: "good", coverage: { visible_categories: ["outfit", "color", "fit", "shoes", "styling"], unavailable_categories: [] } };
   const live = result ?? fallback;
   const breakdown = [
-    { label: "Outfit", score: live.scores.outfit },
-    { label: "Colors", score: live.scores.color },
-    { label: "Fit", score: live.scores.fit },
-    { label: "Shoes", score: live.scores.shoes },
-    { label: "Styling", score: live.scores.styling },
+    { label: "Outfit", category: live.scores.outfit },
+    { label: "Colors", category: live.scores.color },
+    { label: "Fit", category: live.scores.fit },
+    { label: "Shoes", category: live.scores.shoes },
+    { label: "Styling", category: live.scores.styling },
   ];
 
   return (
@@ -700,19 +707,19 @@ function PremiumResultsView({
             <div className="premium-score-number"><strong>{live.overall_score.toFixed(1)}</strong><span>/10</span></div>
           </div>
           <h2 className="premium-verdict">{live.verdict}</h2>
-          <p className="premium-score-note">{live.summary}</p>
+          <p className="premium-score-note">{live.summary}</p>{live.coverage.unavailable_categories.length > 0 && <p className="coverage-note">Not visible: {live.coverage.unavailable_categories.join(", ")}.</p>}
         </div>
       </div>
 
       <div className="premium-result-grid">
         <div className="premium-main-column">
           <section className="result-section breakdown-card">
-            <div className="result-section-heading"><div><span className="mono">01 / QUICK READ</span><h3>THE BREAKDOWN</h3></div><span className="section-badge">5 signals</span></div>
+            <div className="result-section-heading"><div><span className="mono">01 / QUICK READ</span><h3>THE BREAKDOWN</h3></div><span className="section-badge">{live.coverage.visible_categories.length} visible</span></div>
             <div className="breakdown-list">
               {breakdown.map((item, index) => (
                 <motion.div className="breakdown-item" key={item.label} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * .06 }}>
-                  <div className="breakdown-label"><span>{item.label}</span><strong>{item.score.toFixed(1)}</strong></div>
-                  <div className="breakdown-track"><motion.span initial={{ width: 0 }} animate={{ width: `${item.score * 10}%` }} transition={{ delay: .15 + index * .06, duration: .5 }} /></div>
+                  <div className="breakdown-label"><span>{item.label}</span><strong>{item.category.score === null ? "Not visible" : item.category.score.toFixed(1)}</strong></div>
+                  <div className="breakdown-track"><motion.span initial={{ width: 0 }} animate={{ width: `${(item.category.score ?? 0) * 10}%` }} transition={{ delay: .15 + index * .06, duration: .5 }} /></div>
                 </motion.div>
               ))}
             </div>
