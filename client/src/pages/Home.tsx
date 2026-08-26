@@ -117,7 +117,7 @@ function RatingReveal({ score }: { score: number }) {
           </motion.div>
         ))}
       </div>
-      <div className="rating-copy"><span className="mono score-kicker">OVERALL FIT SCORE</span><p>A considered combination with room to sharpen.</p><span className="rating-caption">Your strongest signals are color and silhouette.</span></div>
+      <div className="rating-copy"><span className="mono score-kicker">OVERALL SCORE</span><p>Strong foundation. A few easy wins.</p><span className="rating-caption">Your strongest signals are color and shape.</span></div>
     </div>
   );
 }
@@ -136,27 +136,27 @@ function HomeView({
       <div className="home-copy">
         <div className="eyebrow-row">
           <span className="red-dot" />
-          <span>YOUR PERSONAL FIT EDITOR</span>
+          <span>STYLE CHECK / INSTANT READ</span>
         </div>
         <h1>
-          Know the fit
+          Check the fit
           <br />
-          <em>before you go.</em>
+          <em>before you post.</em>
         </h1>
         <p className="home-intro">
-          Upload the outfit. Get the useful read. Leave the house with one less question in your head.
+          Get a quick, honest read on your outfit before it leaves the mirror.
         </p>
         <div className="home-actions">
           <button className="btn btn--red" onClick={onDevelop}>
-            Develop My Fit <ArrowUpRight size={17} strokeWidth={2.4} />
+            Check my outfit <ArrowUpRight size={17} strokeWidth={2.4} />
           </button>
           <button className="text-button" onClick={onSample}>
-            <span className="button-under">Try a sample frame</span>
+            <span className="button-under">Use a sample</span>
             <ChevronRight size={15} />
           </button>
         </div>
         <p className="privacy-note">
-          <Sparkles size={13} /> Photos are analyzed by AI and stored on this device.
+          <Sparkles size={13} /> Your photo stays private on this device. AI only reads the outfit.
         </p>
       </div>
 
@@ -232,10 +232,10 @@ function PreviewView({
     <section className="flow-view preview-view">
       <div className="flow-heading">
         <div>
-          <span className="mono step-label">01 / CAPTURE</span>
-          <h1>Put the frame<br /><em>on the light table.</em></h1>
+          <span className="mono step-label">01 / ADD YOUR FIT</span>
+          <h1>Show us the fit.<br /><em>We’ll read the details.</em></h1>
         </div>
-        <p className="flow-caption">Full-body shots score most accurately.<br />Portrait or landscape both work.</p>
+        <p className="flow-caption">Full-body shots give the clearest read.<br />Portrait or landscape both work.</p>
       </div>
 
       <div
@@ -256,13 +256,13 @@ function PreviewView({
         ) : (
           <div className="drop-target">
             <div className="drop-icon"><ImagePlus size={27} strokeWidth={1.6} /></div>
-            <span className="drop-title">Add your outfit</span>
-            <span className="drop-subtitle">Drop a photo here or choose how to add it.</span>
+            <span className="drop-title">Add an outfit photo</span>
+            <span className="drop-subtitle">Choose a photo or take one now.</span>
             <div className="upload-options">
-              <button className="upload-option upload-option--primary" onClick={onChoose}><FolderOpen size={16} /> Choose from camera roll</button>
-              <button className="upload-option upload-option--secondary" onClick={onCameraChoose}><Camera size={16} /> Take a photo</button>
+              <button className="upload-option upload-option--primary" onClick={onChoose}><FolderOpen size={16} /> Choose from photos</button>
+              <button className="upload-option upload-option--secondary" onClick={onCameraChoose}><Camera size={16} /> Use camera</button>
             </div>
-            <span className="drop-hint mono">FULL OUTFIT WORKS BEST</span>
+            <span className="drop-hint mono">FULL OUTFIT = BETTER READ</span>
           </div>
         )}
       </div>
@@ -270,14 +270,14 @@ function PreviewView({
       <div className="flow-footer">
         <div className="flow-footnote">
           <span className="red-dot" />
-          <span>One photo. One honest read.</span>
+          <span>One photo. One clear read.</span>
         </div>
         <div className="flow-actions">
           <button className="btn btn--quiet" onClick={onChoose}>
             <FolderOpen size={16} /> Choose another
           </button>
           <button className="btn btn--red" onClick={onDevelop} disabled={!photo}>
-            Develop this fit <ArrowUpRight size={17} />
+            Check this outfit <ArrowUpRight size={17} />
           </button>
         </div>
       </div>
@@ -306,8 +306,8 @@ function AnalyzingView({ photo, messageIndex }: { photo: string; messageIndex: n
         </div>
       </div>
       <div className="analysis-copy">
-        <span className="mono step-label">02 / DEVELOPING</span>
-        <h1>Looking<br /><em>closer.</em></h1>
+        <span className="mono step-label">02 / READING YOUR FIT</span>
+        <h1>Reading<br /><em>the details.</em></h1>
         <p>{analysisMessages[messageIndex]}</p>
         <div className="analysis-progress"><motion.span animate={{ width: `${Math.min(94, 24 + messageIndex * 24)}%` }} transition={{ type: "spring", stiffness: 90, damping: 18 }} /></div>
         <span className="mono analysis-foot">AI STYLIST / SONNET TIER / {String(messageIndex + 1).padStart(2, "0")} OF 04</span>
@@ -335,8 +335,8 @@ function ResultsView({
     <section className="results-view">
       <div className="results-topline">
         <div>
-          <span className="mono step-label">03 / DEVELOPED FRAME</span>
-          <h1>Your fit, <em>developed.</em></h1>
+          <span className="mono step-label">03 / YOUR FIT READ</span>
+          <h1>Your fit, <em>decoded.</em></h1>
         </div>
         <div className="results-top-meta mono">FIT Nº 014 · AUG 26 <span className="status-pill"><span /> SAVED LOCALLY</span></div>
       </div>
@@ -380,13 +380,13 @@ function ResultsView({
           </div>
 
           <div className="verdict-block">
-            <span className="mono verdict-kicker">THE READ</span>
+            <span className="mono verdict-kicker">THE VERDICT</span>
             <h2>Good structure. Let the shirt breathe.</h2>
             <p>The charcoal overshirt gives the olive trousers a clean vertical line. The cream sneakers keep the contrast easy without flattening the look.</p>
           </div>
 
           <div className="tips-block">
-            <span className="mono verdict-kicker">TWO SMALL MOVES</span>
+            <span className="mono verdict-kicker">TWO EASY WINS</span>
             <div className="tip"><span className="tip-number">01</span><p>Push the sleeves once to show a sliver of the tee and break up the layers.</p></div>
             <div className="tip"><span className="tip-number">02</span><p>Keep the tote low and loose; it will echo the trouser line instead of competing with it.</p></div>
           </div>
@@ -411,7 +411,7 @@ function HistoryView({ onBack, onDevelop }: { onBack: () => void; onDevelop: () 
         <div>
           <button className="back-button" onClick={onBack}><ArrowLeft size={15} /> Back to workbench</button>
           <span className="mono step-label">ARCHIVE / 14 FRAMES</span>
-          <h1>The fits<br /><em>you kept.</em></h1>
+          <h1>Your fits<br /><em>in one place.</em></h1>
         </div>
         <div className="streak-card">
           <span className="mono">CURRENT STREAK</span>
@@ -421,7 +421,7 @@ function HistoryView({ onBack, onDevelop }: { onBack: () => void; onDevelop: () 
       </div>
 
       <div className="history-summary">
-        <div className="summary-copy"><span className="mono">SCORE OVER TIME</span><p>Small changes. A sharper average.</p></div>
+        <div className="summary-copy"><span className="mono">SCORE OVER TIME</span><p>Track the looks that keep getting better.</p></div>
         <div className="chart-wrap">
           <svg className="score-chart" viewBox="0 0 640 150" preserveAspectRatio="none" role="img" aria-label="Fit score over the last four developed looks">
             <path className="chart-grid" d="M0 22H640M0 74H640M0 126H640" />
