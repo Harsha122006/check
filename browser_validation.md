@@ -92,3 +92,18 @@ The real gallery-selected WebP remains active after scrolling: the preview uses 
 ## 2026-08-26 real gallery upload success
 
 The actual gallery-selected WebP file completed the live analysis end to end. Its blob URL remained the submitted image, and the results screen rendered an honest structured 8.3/10 score with five visible categories, grounded earth-tone feedback, improvement guidance, and confidence. This confirms the selected-file path works after the pipeline repair, not only the built-in sample shortcut.
+
+
+## 2026-08-26 light editorial UI validation
+
+The refreshed home screen now uses the requested soft-blue palette, Manrope typography, lighter heading weight, restrained accent blue, calm whitespace, and an elegant dark primary button. The mobile capture remains legible with a full-width primary action. The upload screen preserves the existing camera, gallery, drag-and-drop, preview, category, and analysis controls while presenting them in a white/soft-blue editorial card with softer labels and the updated `Ready when you are.` copy.
+
+
+## 2026-08-26 editorial upload-flow validation
+
+The restyled upload screen displays the sample outfit prominently inside a white editorial card, with a thin Manrope heading, the updated `Ready when you are.` copy, optional vibe chips, restrained change-photo control, and a single dark `Check my fit` CTA. The existing sample flow and image preview remain intact.
+
+
+## 2026-08-26 editorial results validation
+
+The sample analysis still reaches the results screen after the visual rewrite. The restyled result uses the uploaded outfit as the hero, a thin accent-blue score ring and Manrope score, a restrained breakdown with thin progress lines, short AI feedback, and a soft-blue `One thing I’d change` card. The live result rendered 8.2/10 with the updated sentence-case labels and preserved Try another fit, Share my score, and Save fit actions.

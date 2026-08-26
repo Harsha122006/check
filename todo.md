@@ -27,3 +27,5 @@
 - [x] Fix valid uploaded-picture analysis failures and verify the live analysis path reaches results or returns a useful actionable error.
 
 - [x] Verify a real gallery-selected image upload reaches live analysis results end to end after the pipeline fix.
+
+- [x] Review the newly attached FitCheck brief and apply its actionable requirements without regressing picture analysis.

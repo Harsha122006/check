@@ -112,7 +112,7 @@ function FitMark({ compact = false }: { compact?: boolean }) {
   return (
     <span className={`fit-mark ${compact ? "fit-mark--compact" : ""}`} aria-label="FitCheck">
       <img src={MARK_IMAGE} alt="" />
-      {!compact && <span className="fit-wordmark">FITCHECK</span>}
+      {!compact && <span className="fit-wordmark">Fit Check</span>}
     </span>
   );
 }
@@ -193,11 +193,11 @@ function HomeView({
           <em>today?</em>
         </h1>
         <p className="home-intro">
-          Show us your outfit. We’ll tell you what works.
+          See how it looks before everyone else does.
         </p>
         <div className="home-actions">
           <button className="btn btn--red" onClick={onDevelop}>
-            CHECK MY FIT <ArrowUpRight size={17} strokeWidth={2.4} />
+            Check my fit <ArrowUpRight size={17} strokeWidth={2.4} />
           </button>
           <button className="text-button" onClick={onSample}>
             <span className="button-under">Try a sample</span>
@@ -212,7 +212,7 @@ function HomeView({
       </div>
 
       <section className="recent-fits" aria-labelledby="recent-fits-title">
-        <div className="recent-heading"><h2 id="recent-fits-title">Recent Fits</h2><button className="recent-see-all" onClick={onHistory}>See all <ArrowUpRight size={14} /></button></div>
+        <div className="recent-heading"><h2 id="recent-fits-title">Recent fits</h2><button className="recent-see-all" onClick={onHistory}>See all <ArrowUpRight size={14} /></button></div>
         <div className="recent-fit-list">
           {historyItems.slice(0, 3).map((item) => (
             <button className="recent-fit-card" key={item.id} onClick={onHistory}>
@@ -321,8 +321,8 @@ function PreviewView({
               <span className="preview-label mono">{fileName || "FRAME 014"}</span>
             </div>
             <div className="selected-copy">
-              <h2>Looking good already 👀</h2>
-              <p>Tell us the vibe, or skip it and get your score.</p>
+              <h2>Ready when you are.</h2>
+              <p>Choose a vibe if you want, or skip it.</p>
             </div>
             {analysisError && (
               <div className="analysis-error" role="alert">
@@ -341,7 +341,7 @@ function PreviewView({
             </div>
             <div className="upload-submit-row">
               <button className="change-photo" onClick={onRetake}><RefreshCw size={14} /> Change photo</button>
-              <button className="btn btn--red upload-submit" onClick={onDevelop}>GET MY FIT SCORE <ArrowUpRight size={17} /></button>
+              <button className="btn btn--red upload-submit" onClick={onDevelop}>Check my fit <ArrowUpRight size={17} /></button>
             </div>
           </>
         ) : (
@@ -674,7 +674,7 @@ export default function Home() {
         </AnimatePresence>
       </main>
 
-      <footer className="site-footer"><span className="mono">FITCHECK / 2026</span><span className="footer-rule" /><span className="mono">CLOTHES ONLY. NEVER THE PERSON.</span><button className="footer-privacy">Privacy <ChevronRight size={13} /></button></footer>
+      <footer className="site-footer"><span className="mono">Fit Check / 2026</span><span className="footer-rule" /><span className="mono">CLOTHES ONLY. NEVER THE PERSON.</span><button className="footer-privacy">Privacy <ChevronRight size={13} /></button></footer>
     </div>
   );
 }
@@ -714,7 +714,7 @@ function PremiumResultsView({
       <div className="result-hero-card">
         <div className="result-hero-photo"><img src={photo} alt="Your uploaded outfit" /><span className="result-photo-label">YOUR OUTFIT</span></div>
         <div className="result-score-panel">
-          <span className="mono score-kicker">YOUR FIT SCORE</span>
+          <span className="mono score-kicker">Your fit score</span>
           <div className="premium-score-wrap">
             <svg className="premium-score-ring" viewBox="0 0 210 210" aria-hidden="true">
               <circle className="premium-ring-track" cx="105" cy="105" r="88" pathLength="1" />
@@ -730,7 +730,7 @@ function PremiumResultsView({
       <div className="premium-result-grid">
         <div className="premium-main-column">
           <section className="result-section breakdown-card">
-            <div className="result-section-heading"><div><span className="mono">01 / QUICK READ</span><h3>THE BREAKDOWN</h3></div><span className="section-badge">{live.coverage.visible_categories.length} visible</span></div>
+            <div className="result-section-heading"><div><span className="mono">01 / QUICK READ</span><h3>The breakdown</h3></div><span className="section-badge">{live.coverage.visible_categories.length} visible</span></div>
             <div className="breakdown-list">
               {breakdown.map((item, index) => (
                 <motion.div className="breakdown-item" key={item.label} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * .06 }}>
@@ -742,21 +742,21 @@ function PremiumResultsView({
           </section>
 
           <section className="result-section feedback-card">
-            <span className="mono">02 / THE HUMAN READ</span>
-            <h3>WHAT WE THINK</h3>
+            <span className="mono">02 / AI feedback</span>
+            <h3>What we noticed</h3>
             <p>{live.summary}</p>
           </section>
         </div>
 
         <aside className="premium-side-column">
-          <section className="level-up-card"><span className="mono">LEVEL IT UP</span><h3>One small move.</h3><p>{live.improvements[0] ?? "Try one small styling adjustment and check the balance again."}</p><span className="level-up-arrow">↗</span></section>
+          <section className="level-up-card"><span className="mono">One thing I’d change</span><h3>One small move.</h3><p>{live.improvements[0] ?? "Try one small styling adjustment and check the balance again."}</p><span className="level-up-arrow">↗</span></section>
           <div className="result-meta-card"><span className="mono">WHAT’S WORKING</span><strong>{live.strengths[0] ?? "Strong visual balance"}</strong><span className="mono">CONFIDENCE / {Math.round(live.confidence * 100)}%</span></div>
         </aside>
       </div>
 
       <div className="premium-result-actions">
-        <button className="btn btn--red premium-primary-action" onClick={onAgain}>TRY ANOTHER FIT <ArrowUpRight size={17} /></button>
-        <button className="btn btn--quiet premium-share-action" onClick={onShare}><Share2 size={16} /> SHARE MY SCORE</button>
+        <button className="btn btn--red premium-primary-action" onClick={onAgain}>Try another fit <ArrowUpRight size={17} /></button>
+        <button className="btn btn--quiet premium-share-action" onClick={onShare}><Share2 size={16} /> Share my score</button>
         <button className="save-link" onClick={onSave}>{saved ? <Check size={14} /> : <Bookmark size={14} />} {saved ? "Saved" : "Save fit"}</button>
       </div>
     </section>
