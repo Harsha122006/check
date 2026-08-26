@@ -783,7 +783,6 @@ export default function Home() {
         </AnimatePresence>
       </main>
 
-      <footer className="site-footer"><span className="mono">Fit Check / 2026</span><span className="footer-rule" /><span className="mono">CLOTHES ONLY. NEVER THE PERSON.</span><button className="footer-privacy">Privacy <ChevronRight size={13} /></button></footer>
     </div>
   );
 }

@@ -51,7 +51,6 @@ export default function NotFound() {
           <a href="/" className="text-button"><ArrowLeft size={14} /><span className="button-under">Back to workbench</span></a>
         </div>
       </main>
-      <footer className="site-footer"><span className="mono">FITCHECK / 2026</span><span className="footer-rule" /><span className="mono">CLOTHES ONLY. NEVER THE PERSON.</span></footer>
     </div>
   );
 }

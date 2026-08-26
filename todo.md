@@ -37,3 +37,5 @@
 - [x] Wire archive cards to load and display a saved outfit through the protected retrieval procedure.
 - [x] Verify the authenticated upload → Gemini → save → refresh → retrieve → delete flow in a signed-in browser session and record results with a real gallery-selected file.
 - [x] Document the built-in storage deletion limitation; verified that deleted image references are absent from Archive and protected retrieval, while hard object deletion is unavailable in the configured storage helper.
+
+- [x] Reduce “What’s the fit today?” scale, enlarge useful action buttons, shrink instructions, and remove the bottom footer copy across responsive layouts.
