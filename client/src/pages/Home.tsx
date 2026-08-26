@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { isCurrentAnalysisRequest, shouldStartAnalysis } from "@/lib/analysisGuards";
 
 type Stage = "home" | "preview" | "analyzing" | "results" | "history";
 
@@ -385,7 +386,7 @@ function AnalyzingView({ photo, messageIndex }: { photo: string; messageIndex: n
         <h1>Reading<br /><em>the details.</em></h1>
         <p>{analysisMessages[messageIndex]}</p>
         <div className="analysis-progress"><motion.span animate={{ width: `${Math.min(94, 24 + messageIndex * 24)}%` }} transition={{ type: "spring", stiffness: 90, damping: 18 }} /></div>
-        <span className="mono analysis-foot">AI STYLIST / SONNET TIER / {String(messageIndex + 1).padStart(2, "0")} OF 04</span>
+        <span className="mono analysis-foot">AI STYLIST / GEMINI FAST / {String(messageIndex + 1).padStart(2, "0")} OF 04</span>
       </div>
     </section>
   );
@@ -535,6 +536,7 @@ export default function Home() {
   const [liveResult, setLiveResult] = useState<FitCheckResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const analyzeFit = trpc.fitCheck.analyze.useMutation();
+  const analysisRequestRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const reducedMotion = useReducedMotion();
@@ -600,6 +602,7 @@ export default function Home() {
   };
 
   const startOver = () => {
+    analysisRequestRef.current += 1;
     setStage("home");
     setPreviewUrl(null);
     setSelectedFile(null);
@@ -609,16 +612,29 @@ export default function Home() {
   };
 
   const submitForAnalysis = async () => {
+    if (!shouldStartAnalysis(analyzeFit.isPending, stage)) return;
+    const requestId = ++analysisRequestRef.current;
+    const totalStartedAt = performance.now();
     setAnalysisIndex(0);
     setAnalysisError(null);
     setStage("analyzing");
     try {
+      const uploadStartedAt = performance.now();
       const imageDataUrl = selectedFile ? await fileToDataUrl(selectedFile) : await urlToDataUrl(photo);
+      const uploadDuration = performance.now() - uploadStartedAt;
+      const geminiStartedAt = performance.now();
       const result = await analyzeFit.mutateAsync({ imageDataUrl, category: category || undefined });
+      const geminiDuration = performance.now() - geminiStartedAt;
+      const totalDuration = performance.now() - totalStartedAt;
+      if (import.meta.env.DEV) {
+        console.info("[FitCheck] analysis_timing", { image_upload_duration_ms: Math.round(uploadDuration), gemini_request_duration_ms: Math.round(geminiDuration), total_analysis_duration_ms: Math.round(totalDuration) });
+      }
+      if (!isCurrentAnalysisRequest(analysisRequestRef.current, requestId)) return;
       setLiveResult(result);
       setStage("results");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not read this fit. Please try again.";
+      if (!isCurrentAnalysisRequest(analysisRequestRef.current, requestId)) return;
+      const message = error instanceof Error ? error.message : "Something went wrong on our side. Try again.";
       setAnalysisError(message);
       setStage("preview");
       toast("Fit check couldn’t finish.", { description: message });

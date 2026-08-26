@@ -46,3 +46,11 @@ Partial-image Gemini scenario validation: cropped-shoes returned image_quality g
 
 
 Final live scenario validation: compact full-body strong image returned image_quality good, score 8.3, confidence 0.95, with all five categories visible. A very-dark-unusable image returned image_quality insufficient, score 0, confidence 0, no visible categories, and all five categories unavailable. A deliberately mismatched-color image returned image_quality usable, score 7.7, confidence 0.55, with color marked unavailable rather than inventing a color judgment; the score remained below the strong-fit range. This completes the live representative scenario set alongside the cropped, upper-body, blurry-usable, and no-shoes cases recorded above.
+
+## 2026-08-26 Gemini hardening live check
+
+After switching the default model to the documented stable `gemini-3.5-flash-lite` and setting the default timeout to 8 seconds, the live sample submission entered the existing analysis screen and then exited at the bounded timeout with the inline message “That took longer than expected. Try again.” The request did not hang, and the retry action remained available. Server diagnostics recorded the request ID, 576x768 JPEG dimensions, payload size, model, 8-second timeout, and `API_TIMEOUT` category. Unit and build checks passed; live success remains dependent on Gemini service responsiveness/credential availability in this preview environment.
+
+## 2026-08-26 post-hardening model check
+
+After the default switched to `gemini-3.5-flash-lite` with `GEMINI_TIMEOUT_MS=8000`, the existing sample flow reached the live analysis screen immediately. The server diagnostic recorded a 576x768 JPEG, 38,924-character payload, model `gemini-3.5-flash-lite`, retry count 2, 8,000 ms timeout, and 8,040.6 ms total duration. The UI returned to preview with the safe “That took longer than expected. Try again.” message and visible retry control; no hanging request or fabricated score was shown. This preview run was limited by Gemini service responsiveness, not a routing or payload-size error.

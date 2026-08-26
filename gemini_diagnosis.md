@@ -1,0 +1,7 @@
+# Gemini pipeline diagnosis
+
+The primary observed failure was a request-level timeout: the server log showed the sample analysis returning tRPC `408` after roughly 61.6 seconds while the Gemini request was still pending. The earlier implementation used `Promise.race` only, so the losing Gemini promise was not cancelled. The model was also hardcoded, the Express body parser accepted 50 MB despite the compressed image contract, and the frontend had no duplicate-submit guard or request token to prevent stale responses.
+
+A secondary observed failure was a Gemini `503 UNAVAILABLE` response caused by temporary model demand. The previous retry policy was bounded but too short for a transient spike and the frontend collapsed several failure types into one generic message. The live browser also surfaced a gateway/request-size failure before client-side compression was tightened.
+
+The hardening revision adds an environment-configurable model and timeout, an abort signal connected to both server timeout and request-aborted events, bounded exponential retries for only temporary failures, one controlled parse-recovery attempt, a typed error taxonomy, safe public messages, request diagnostics, payload/dimension metadata, client upload/Gemini/total timing logs, duplicate-submit/stale-response protection, a tighter 2 MB JSON body limit, and coverage-aware structured scoring. Existing UI, Gemini provider, and one-request-per-submission behavior remain intact.

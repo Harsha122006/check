@@ -4,19 +4,34 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { analyzeFitWithGemini } from "./fitcheck";
+import { analyzeFitWithGemini, FitCheckError } from "./fitcheck";
+
+function mapFitCheckError(error: unknown): TRPCError {
+  if (error instanceof FitCheckError) {
+    const mapped: Record<FitCheckError["code"], { code: "BAD_REQUEST" | "TIMEOUT" | "TOO_MANY_REQUESTS" | "PRECONDITION_FAILED" | "BAD_GATEWAY" | "INTERNAL_SERVER_ERROR"; message: string }> = {
+      IMAGE_PROBLEM: { code: "BAD_REQUEST", message: "Try a clearer photo — we need to be able to see your outfit." },
+      API_TIMEOUT: { code: "TIMEOUT", message: "That took longer than expected. Try again." },
+      RATE_LIMIT: { code: "TOO_MANY_REQUESTS", message: "Fit Check is getting a lot of requests right now. Try again in a moment." },
+      SERVER_ERROR: { code: "BAD_GATEWAY", message: "Something went wrong on our side. Try again." },
+      INVALID_API_KEY: { code: "PRECONDITION_FAILED", message: "AI service configuration error." },
+      INVALID_REQUEST: { code: "BAD_REQUEST", message: "Try a different image file and try again." },
+      REQUEST_CANCELLED: { code: "TIMEOUT", message: "That fit read was cancelled. Try again when you’re ready." },
+      INVALID_GEMINI_RESPONSE: { code: "BAD_GATEWAY", message: "The fit read came back incomplete. Please try again." },
+    };
+    const result = mapped[error.code];
+    return new TRPCError({ code: result.code, message: result.message, cause: error.cause });
+  }
+  return new TRPCError({ code: "BAD_GATEWAY", message: "Something went wrong on our side. Try again.", cause: error });
+}
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
+      return { success: true } as const;
     }),
   }),
 
@@ -26,27 +41,24 @@ export const appRouter = router({
         imageDataUrl: z.string().min(32).max(750_000),
         category: z.string().trim().max(32).optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const controller = new AbortController();
+        const onAborted = () => controller.abort();
+        ctx.req.once("aborted", onAborted);
+        ctx.req.once("close", onAborted);
         try {
-          return await analyzeFitWithGemini(input);
+          return await analyzeFitWithGemini({ ...input, signal: controller.signal });
         } catch (error) {
-          const code = error instanceof Error ? error.message : "GEMINI_REQUEST_FAILED";
-          if (code === "INVALID_IMAGE_DATA") throw new TRPCError({ code: "BAD_REQUEST", message: "Please choose a valid image file." });
-          if (code === "GEMINI_NOT_CONFIGURED") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Fit analysis is not configured yet." });
-          if (code === "GEMINI_TIMEOUT") throw new TRPCError({ code: "TIMEOUT", message: "The fit read took too long. Please try again." });
-          if (code.startsWith("INVALID_GEMINI") || code === "EMPTY_GEMINI_RESPONSE") throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The fit read came back incomplete. Please retry." });
-          console.error("[FitCheck] Gemini analysis failed", error);
-          throw new TRPCError({ code: "BAD_GATEWAY", message: "Could not reach the fit reader. Please retry." });
+          if (!(error instanceof FitCheckError) || error.code !== "REQUEST_CANCELLED") {
+            console.error("[FitCheck] request failed", error);
+          }
+          throw mapFitCheckError(error);
+        } finally {
+          ctx.req.off("aborted", onAborted);
+          ctx.req.off("close", onAborted);
         }
       }),
   }),
-
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
 });
 
 export type AppRouter = typeof appRouter;

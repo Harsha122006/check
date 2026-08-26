@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { analyzeFitWithGemini, normalizeResult } from "./fitcheck";
+import { analyzeFitWithGemini, classifyGeminiError, FitCheckError, getImageDimensions, isRetryableGeminiError, normalizeResult, parseFitCheckResponse, parseWithRecovery, toPublicAnalysisError, validateImageDataUrl } from "./fitcheck";
+import { isCurrentAnalysisRequest, shouldStartAnalysis } from "../client/src/lib/analysisGuards";
 
 const category = (score: number | null, visibility: "visible" | "not_visible" | "unclear" = "visible", reason = "Visible clothing evidence.") => ({ score, visibility, reason });
 
@@ -66,9 +67,85 @@ describe("FitCheck result normalization", () => {
   });
 });
 
+describe("FitCheck Gemini error policy", () => {
+  it("retries only temporary transport and API failures", () => {
+    expect(isRetryableGeminiError({ status: 429 })).toBe(true);
+    expect(isRetryableGeminiError({ status: 503 })).toBe(true);
+    expect(isRetryableGeminiError(new TypeError("network failed"))).toBe(true);
+    expect(isRetryableGeminiError({ status: 400 })).toBe(false);
+    expect(isRetryableGeminiError({ status: 401 })).toBe(false);
+  });
+
+  it("maps API failures to safe public error categories", () => {
+    expect(classifyGeminiError({ status: 429 })).toBe("RATE_LIMIT");
+    expect(classifyGeminiError({ status: 503 })).toBe("SERVER_ERROR");
+    expect(classifyGeminiError({ status: 401 })).toBe("INVALID_API_KEY");
+    expect(classifyGeminiError({ status: 400 })).toBe("INVALID_REQUEST");
+  });
+});
+
 describe("FitCheck image validation", () => {
-  it("rejects non-image payloads before contacting Gemini", async () => {
-    await expect(analyzeFitWithGemini({ imageDataUrl: "not-an-image" })).rejects.toThrow("INVALID_IMAGE_DATA");
+  it("accepts supported JPEG, PNG, and WebP data URLs", () => {
+    expect(validateImageDataUrl("data:image/jpeg;base64,AAAA").mimeType).toBe("image/jpeg");
+    expect(validateImageDataUrl("data:image/png;base64,AAAA").mimeType).toBe("image/png");
+    expect(validateImageDataUrl("data:image/webp;base64,AAAA").mimeType).toBe("image/webp");
+  });
+
+  it("reads PNG dimensions without making dimensions a hard failure", () => {
+    const png1x1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+    expect(getImageDimensions("image/png", png1x1)).toEqual({ width: 1, height: 1 });
+  });
+
+  it("reads JPEG SOF dimensions deterministically", () => {
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x01, 0x2c, 0x02, 0x00, 0x03, 0x01, 0x11, 0x00, 0xff, 0xd9]).toString("base64");
+    expect(getImageDimensions("image/jpeg", jpeg)).toEqual({ width: 512, height: 300 });
+  });
+
+  it("reads WebP VP8X dimensions deterministically", () => {
+    const webp = Buffer.alloc(31);
+    webp.write("RIFF", 0, "ascii");
+    webp.write("WEBP", 8, "ascii");
+    webp.write("VP8X", 12, "ascii");
+    webp[24] = 99; webp[25] = 0; webp[26] = 0;
+    webp[27] = 49; webp[28] = 0; webp[29] = 0;
+    expect(getImageDimensions("image/webp", webp.toString("base64"))).toEqual({ width: 100, height: 50 });
+  });
+
+  it("rejects non-image and oversized payloads before contacting Gemini", async () => {
+    await expect(analyzeFitWithGemini({ imageDataUrl: "not-an-image" })).rejects.toMatchObject({ code: "IMAGE_PROBLEM" } satisfies Partial<FitCheckError>);
+    await expect(analyzeFitWithGemini({ imageDataUrl: `data:image/jpeg;base64,${"A".repeat(750_001)}` })).rejects.toMatchObject({ code: "IMAGE_PROBLEM" } satisfies Partial<FitCheckError>);
+  });
+});
+
+describe("FitCheck structured response parsing", () => {
+  it("rejects malformed JSON with the safe response error", () => {
+    expect(() => parseFitCheckResponse("{bad json")).toThrowError("The fit read came back incomplete.");
+  });
+
+  it("recovers once from malformed JSON and parses the next response", () => {
+    expect(parseWithRecovery(["{bad json", JSON.stringify(base)]).overall_score).toBe(9.9);
+  });
+
+  it("stops recovery after two malformed responses", () => {
+    expect(() => parseWithRecovery(["{bad json", "still bad", JSON.stringify(base)])).toThrowError(FitCheckError);
+  });
+});
+
+describe("FitCheck request safety guards", () => {
+  it("suppresses duplicate submissions while pending or analyzing", () => {
+    expect(shouldStartAnalysis(false, "preview")).toBe(true);
+    expect(shouldStartAnalysis(true, "preview")).toBe(false);
+    expect(shouldStartAnalysis(false, "analyzing")).toBe(false);
+  });
+
+  it("ignores stale responses after a newer request becomes active", () => {
+    expect(isCurrentAnalysisRequest(7, 7)).toBe(true);
+    expect(isCurrentAnalysisRequest(8, 7)).toBe(false);
+  });
+
+  it("maps internal timeout and cancellation states to safe public errors", () => {
+    expect(toPublicAnalysisError(new Error("aborted"), true, false).code).toBe("API_TIMEOUT");
+    expect(toPublicAnalysisError(new Error("aborted"), false, true).code).toBe("REQUEST_CANCELLED");
   });
 });
 
