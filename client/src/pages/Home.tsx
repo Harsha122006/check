@@ -788,6 +788,77 @@ export default function Home() {
 }
 
 
+function AnimatedScore({ score }: { score: number }) {
+  const prefersReducedMotion = useReducedMotion();
+  const [displayScore, setDisplayScore] = useState(prefersReducedMotion ? score : 0);
+  const [isSettled, setIsSettled] = useState(prefersReducedMotion);
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setDisplayScore(score);
+      setIsSettled(true);
+      return;
+    }
+
+    let frame = 0;
+    const startedAt = performance.now();
+    const duration = 880;
+    setDisplayScore(0);
+    setIsSettled(false);
+
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 4);
+      setDisplayScore(score * eased);
+      if (progress < 1) frame = requestAnimationFrame(tick);
+      else {
+        setDisplayScore(score);
+        setIsSettled(true);
+      }
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [prefersReducedMotion, score]);
+
+  return (
+    <motion.div
+      className={`premium-score-wrap ${isSettled ? "is-settled" : ""}`}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: isSettled && !prefersReducedMotion ? [1, 1.025, 1] : 1 }}
+      transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1], scale: { duration: 0.28, ease: [0.23, 1, 0.32, 1] } }}
+      aria-label={`Your fit score is ${score.toFixed(1)} out of 10`}
+    >
+      <div className="premium-score-number"><strong>{displayScore.toFixed(1)}</strong><span>/10</span></div>
+    </motion.div>
+  );
+}
+
+function AnimatedCategoryBar({ label, score, index }: { label: string; score: number | null; index: number }) {
+  const prefersReducedMotion = useReducedMotion();
+  const [isComplete, setIsComplete] = useState(Boolean(prefersReducedMotion));
+  const value = score === null ? 0 : score * 10;
+
+  return (
+    <motion.div
+      className={`breakdown-item ${isComplete ? "is-complete" : ""}`}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: prefersReducedMotion ? 0 : 0.82 + index * 0.1, duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+    >
+      <div className="breakdown-label"><span>{label}</span><strong>{score === null ? "Not visible" : `${score.toFixed(1)}/10`}</strong></div>
+      <div className="breakdown-track" aria-hidden="true">
+        <motion.span
+          initial={{ width: 0 }}
+          animate={{ width: `${value}%` }}
+          transition={{ delay: prefersReducedMotion ? 0 : 0.9 + index * 0.1, duration: prefersReducedMotion ? 0 : 0.62, ease: [0.23, 1, 0.32, 1] }}
+          onAnimationComplete={() => setIsComplete(true)}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
 function PremiumResultsView({
   photo,
   result,
@@ -806,11 +877,10 @@ function PremiumResultsView({
   const fallback: FitCheckResult = { overall_score: 8.7, scores: { outfit: { score: 9.0, visibility: "visible", reason: "Visible outfit cohesion." }, color: { score: 8.5, visibility: "visible", reason: "Visible color coordination." }, fit: { score: 8.2, visibility: "visible", reason: "Visible silhouette." }, shoes: { score: 8.8, visibility: "visible", reason: "Footwear is visible." }, styling: { score: 9.0, visibility: "visible", reason: "Visible styling choices." } }, verdict: "Looking clean.", strengths: ["Strong color coordination"], improvements: ["Try a cleaner sneaker"], summary: "The outfit has a strong casual direction with good color balance.", confidence: 0.86, image_quality: "good", coverage: { visible_categories: ["outfit", "color", "fit", "shoes", "styling"], unavailable_categories: [] } };
   const live = result ?? fallback;
   const breakdown = [
-    { label: "Outfit", category: live.scores.outfit },
-    { label: "Colors", category: live.scores.color },
     { label: "Fit", category: live.scores.fit },
-    { label: "Shoes", category: live.scores.shoes },
-    { label: "Styling", category: live.scores.styling },
+    { label: "Color combination", category: live.scores.color },
+    { label: "Style", category: live.scores.styling },
+    { label: "Overall presentation", category: live.scores.outfit },
   ];
 
   return (
@@ -823,13 +893,7 @@ function PremiumResultsView({
         <div className="result-hero-photo"><img src={photo} alt="Your uploaded outfit" /><span className="result-photo-label">YOUR OUTFIT</span></div>
         <div className="result-score-panel">
           <span className="mono score-kicker">Your fit score</span>
-          <div className="premium-score-wrap">
-            <svg className="premium-score-ring" viewBox="0 0 210 210" aria-hidden="true">
-              <circle className="premium-ring-track" cx="105" cy="105" r="88" pathLength="1" />
-              <motion.circle className="premium-ring-progress" cx="105" cy="105" r="88" pathLength="1" initial={{ strokeDashoffset: 1 }} animate={{ strokeDashoffset: 1 - live.overall_score / 10 }} transition={{ duration: 1, ease: "easeOut", delay: .1 }} />
-            </svg>
-            <div className="premium-score-number"><strong>{live.overall_score.toFixed(1)}</strong><span>/10</span></div>
-          </div>
+          <AnimatedScore score={live.overall_score} />
           <h2 className="premium-verdict">{live.verdict}</h2>
           <p className="premium-score-note">{live.summary}</p>{live.coverage.unavailable_categories.length > 0 && <p className="coverage-note">Not visible: {live.coverage.unavailable_categories.join(", ")}.</p>}
         </div>
@@ -839,13 +903,8 @@ function PremiumResultsView({
         <div className="premium-main-column">
           <section className="result-section breakdown-card">
             <div className="result-section-heading"><div><span className="mono">01 / QUICK READ</span><h3>The breakdown</h3></div><span className="section-badge">{live.coverage.visible_categories.length} visible</span></div>
-            <div className="breakdown-list">
-              {breakdown.map((item, index) => (
-                <motion.div className="breakdown-item" key={item.label} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * .06 }}>
-                  <div className="breakdown-label"><span>{item.label}</span><strong>{item.category.score === null ? "Not visible" : item.category.score.toFixed(1)}</strong></div>
-                  <div className="breakdown-track"><motion.span initial={{ width: 0 }} animate={{ width: `${(item.category.score ?? 0) * 10}%` }} transition={{ delay: .15 + index * .06, duration: .5 }} /></div>
-                </motion.div>
-              ))}
+            <div className="breakdown-list" aria-label="Category scores">
+              {breakdown.map((item, index) => <AnimatedCategoryBar key={item.label} label={item.label} score={item.category.score} index={index} />)}
             </div>
           </section>
 
