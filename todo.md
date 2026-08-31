@@ -42,11 +42,11 @@
 
 - [x] Audit and prepare FitCheck for GitHub export and external Vercel deployment without changing the existing live Manus version.
 
-- [ ] If a fully Manus-independent Vercel deployment is required, choose replacement providers and migrate AI, authentication, and storage adapters before external production launch.
+- [x] Defer fully Manus-independent Vercel provider migration; it is outside the current results-animation request and remains intentionally unimplemented.
 
-- [ ] Add a provider-neutral external deployment mode using direct Google Gemini, S3-compatible storage, and Auth.js-compatible authentication while preserving Manus defaults.
-- [ ] Add configuration and setup documentation for external provider credentials without committing secrets.
-- [ ] Validate the external-provider build and deterministic adapter behavior before considering the migration complete.
+- [x] Defer provider-neutral external deployment mode; user stopped the migration process and no external credentials were requested for this task.
+- [x] Defer external-provider credential documentation; no external deployment work was requested in this task.
+- [x] Defer external-provider validation; the existing Manus-compatible app remains the active deployment target.
 
 - [x] Redesign the results score animation with a count-up overall score and sequential premium category progress bars without changing AI scores or scoring logic.
 - [x] Validate the redesigned results animation through component wiring, responsive CSS, typecheck, tests, production build, desktop shell render, and mobile shell render; a fresh live actual-results screenshot was not available without running another AI analysis.
