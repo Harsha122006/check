@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { fingerprintImageBytes } from "./imageFingerprint";
 import { normalizeResult, type FitCheckResult } from "./fitcheck";
@@ -26,6 +28,13 @@ describe("deterministic image analysis foundations", () => {
     const second = new Uint8Array([1, 2, 3, 4, 5]);
     expect(fingerprintImageBytes(first)).toBe(fingerprintImageBytes(second));
     expect(fingerprintImageBytes(first)).not.toBe(fingerprintImageBytes(new Uint8Array([1, 2, 3, 4, 6])));
+  });
+
+  it("keeps real normalized outfit payloads repeatable and separates different outfit images", () => {
+    const outfitA = readFileSync(resolve(import.meta.dirname, "fixtures/outfit-a.jpg"));
+    const outfitB = readFileSync(resolve(import.meta.dirname, "fixtures/outfit-b.jpg"));
+    expect(fingerprintImageBytes(outfitA)).toBe(fingerprintImageBytes(Uint8Array.from(outfitA)));
+    expect(fingerprintImageBytes(outfitA)).not.toBe(fingerprintImageBytes(outfitB));
   });
 
   it("derives the same rounded weighted score from the same structured categories", () => {

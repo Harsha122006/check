@@ -32,4 +32,6 @@ The app keeps one core AI request per uncached submission, avoids long prose in 
 
 ## Repeatability statement
 
+Validation scope: the current automated proof is fixture-backed and unit-level. It verifies that two real normalized saved-outfit JPEG payloads hash identically when repeated and that a clearly different real outfit payload hashes differently; it also verifies the weighted score is stable for the same structured categories. A live multi-upload comparison through the browser was not completed in this handoff, so the warm-instance/public and persisted/authenticated cache paths should be treated as the implementation guarantee rather than a recorded end-user timing study.
+
 For an authenticated user, the same normalized image bytes resolve to the same SHA-256 fingerprint. After the first successful analysis, subsequent exact repeats return the persisted result rather than invoking Gemini, making the score identical. For unauthenticated use, repeats on the same warm server instance return the cached structured result; a cold serverless instance may analyze again, but temperature `0`, fixed instructions, structured output, and programmatic normalization keep the result policy stable. Different images receive separate fingerprints and continue through the normal fixed-rubric evaluation path.

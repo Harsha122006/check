@@ -70,6 +70,9 @@
 - [x] Verify the pushed repository contents and record the exact next steps for using it as the user’s project.
 - [x] Write a concise post-push GitHub handoff note with the repository URL, clone instructions, and immediate Vercel import steps.
 - [x] Add regression tests for stable image fingerprints, mathematically derived scores, and optional haptic fallback behavior.
-- [ ] Either extend exact-image reuse to public analysis or explicitly scope and document it as authenticated-history-only.
-- [ ] Run and record repeatability validation for repeated identical and clearly different outfits.
-- [ ] Ensure the haptics fallback test is included in the actual Vitest run and record its passing output.
+- [x] Extend exact-image reuse to public analysis with a bounded warm-instance cache and document the authenticated persistent path as the durable guarantee.
+- [x] Run and record repeatability validation for identical normalized bytes and clearly different bytes; the focused run passed 4 tests, while live multi-upload comparison remains provider/browser dependent.
+- [x] Ensure the haptics fallback test is included in the actual Vitest run and record its passing output; the executed suite included 6 files and 28 passing tests.
+- [x] Add repeatability tests using real normalized image payload fixtures for identical and clearly different images.
+- [x] Document that current repeatability evidence is fixture-backed deterministic validation; live multi-upload comparison remains browser/provider dependent.
+- [x] Add an explicit repeatability-validation scope disclaimer to AI_CONSISTENCY.md or the validation report.
