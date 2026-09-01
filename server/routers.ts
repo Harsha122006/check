@@ -5,10 +5,13 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import type { TrpcContext } from "./_core/context";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { createHash } from "node:crypto";
 import { analyzeFitWithGemini, FitCheckError, type FitCheckResult } from "./fitcheck";
 import { createOutfitRecord, completeOutfitRecord, deleteUserOutfit, failOutfitRecord, findCompletedOutfitByFingerprint, getUserOutfit, listUserOutfits } from "./db";
 import { storagePut } from "./storage";
+import { fingerprintImageBytes } from "./imageFingerprint";
+
+const publicAnalysisCache = new Map<string, FitCheckResult>();
+const PUBLIC_CACHE_LIMIT = 32;
 
 function mapFitCheckError(error: unknown): TRPCError {
   if (error instanceof FitCheckError) {
@@ -37,10 +40,6 @@ function dataUrlToBytes(imageDataUrl: string) {
   const match = imageDataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
   if (!match) throw new TRPCError({ code: "BAD_REQUEST", message: "Try a JPG, PNG, or WebP image file." });
   return { mimeType: match[1], bytes: Buffer.from(match[2], "base64") };
-}
-
-function fingerprintImage(bytes: Buffer) {
-  return createHash("sha256").update(bytes).digest("hex");
 }
 
 function cachedAnalysisToResult(analysis: NonNullable<Awaited<ReturnType<typeof findCompletedOutfitByFingerprint>>>["analysis"]): FitCheckResult {
@@ -97,7 +96,17 @@ export const appRouter = router({
   fitCheck: router({
     analyze: publicProcedure.input(analysisInput).mutation(async ({ ctx, input }) => {
       try {
-        return await analyzeWithAbort(ctx, input);
+        const { bytes } = dataUrlToBytes(input.imageDataUrl);
+        const cacheKey = `${fingerprintImageBytes(bytes)}:${input.category ?? ""}`;
+        const cached = publicAnalysisCache.get(cacheKey);
+        if (cached) return cached;
+        const result = await analyzeWithAbort(ctx, input);
+        publicAnalysisCache.set(cacheKey, result);
+        if (publicAnalysisCache.size > PUBLIC_CACHE_LIMIT) {
+          const oldestKey = publicAnalysisCache.keys().next().value;
+          if (oldestKey) publicAnalysisCache.delete(oldestKey);
+        }
+        return result;
       } catch (error) {
         if (!(error instanceof FitCheckError) || error.code !== "REQUEST_CANCELLED") console.error("[FitCheck] request failed", error);
         throw mapFitCheckError(error);
@@ -106,7 +115,7 @@ export const appRouter = router({
 
     analyzeAndPersist: protectedProcedure.input(analysisInput.extend({ requestId: z.string().uuid(), originalName: z.string().trim().max(255).optional() })).mutation(async ({ ctx, input }) => {
       const { mimeType, bytes } = dataUrlToBytes(input.imageDataUrl);
-      const imageFingerprint = fingerprintImage(bytes);
+      const imageFingerprint = fingerprintImageBytes(bytes);
       const cached = await findCompletedOutfitByFingerprint(ctx.user.id, imageFingerprint);
       if (cached?.analysis) {
         return { outfitId: cached.outfit.id, imageUrl: cached.outfit.imageUrl, result: cachedAnalysisToResult(cached.analysis), cached: true as const };

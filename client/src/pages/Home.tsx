@@ -30,6 +30,7 @@ import { trpc } from "@/lib/trpc";
 import { startLogin } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { isCurrentAnalysisRequest, shouldStartAnalysis } from "@/lib/analysisGuards";
+import { triggerHaptic } from "@/lib/haptics";
 
 type Stage = "home" | "preview" | "analyzing" | "results" | "history";
 
@@ -91,6 +92,7 @@ type PersistedHistoryRow = {
   outfit: { id: number; imageUrl: string; createdAt: Date; category: string | null; analysisStatus: string };
   analysis: {
     overallScore: number;
+    outfitScore: number | null;
     colorScore: number | null;
     fitScore: number | null;
     shoesScore: number | null;
@@ -115,7 +117,7 @@ function persistedRowToResult(row: PersistedHistoryRow): FitCheckResult | null {
   return {
     overall_score: row.analysis.overallScore / 10,
     scores: {
-      outfit: category(row.analysis.overallScore, "outfit"),
+      outfit: category(row.analysis.outfitScore, "outfit"),
       color: category(row.analysis.colorScore, "color"),
       fit: category(row.analysis.fitScore, "fit"),
       shoes: category(row.analysis.shoesScore, "shoes"),
@@ -598,7 +600,6 @@ export default function Home() {
   const [fileName, setFileName] = useState("frame_014.jpg");
   const [dragActive, setDragActive] = useState(false);
   const [analysisIndex, setAnalysisIndex] = useState(0);
-  const [score, setScore] = useState(0);
   const [saved, setSaved] = useState(false);
   const [category, setCategory] = useState("");
   const [liveResult, setLiveResult] = useState<FitCheckResult | null>(null);
@@ -639,24 +640,6 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [stage, reducedMotion]);
 
-  useEffect(() => {
-    if (stage !== "results") {
-      setScore(0);
-      return;
-    }
-    if (reducedMotion) {
-      setScore(8.7);
-      return;
-    }
-    let current = 0;
-    const timer = window.setInterval(() => {
-      current = Math.min(8.7, current + 0.29);
-      setScore(Number(current.toFixed(1)));
-      if (current >= 8.7) window.clearInterval(timer);
-    }, 64);
-    return () => window.clearInterval(timer);
-  }, [stage, reducedMotion]);
-
   const chooseFile = (file?: File) => {
     if (!file) {
       inputRef.current?.click();
@@ -673,6 +656,7 @@ export default function Home() {
     setSaved(false);
     setLiveResult(null);
     setStage("preview");
+    triggerHaptic("light");
   };
 
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
@@ -707,6 +691,7 @@ export default function Home() {
     setAnalysisIndex(0);
     setAnalysisError(null);
     setStage("analyzing");
+    triggerHaptic("medium");
     try {
       const uploadStartedAt = performance.now();
       const imageDataUrl = selectedFile ? await fileToDataUrl(selectedFile) : await urlToDataUrl(photo);
@@ -722,6 +707,7 @@ export default function Home() {
       }
       if (!isCurrentAnalysisRequest(analysisRequestRef.current, requestId)) return;
       setLiveResult(result);
+      triggerHaptic("medium");
       if (user) void trpcUtils.fitCheck.history.invalidate();
       setStage("results");
     } catch (error) {
@@ -821,6 +807,7 @@ function AnimatedScore({ score }: { score: number }) {
       else {
         setDisplayScore(score);
         setIsSettled(true);
+        triggerHaptic("success");
       }
     };
 

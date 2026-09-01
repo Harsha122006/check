@@ -60,12 +60,16 @@
 - [x] Add explicit page-transition refinements in the existing route transition wrapper and preserve reduced-motion fallbacks for decorative and entrance motion.
 - [x] Create FITCHECK_DESIGN_REFRESH.md documenting selected colors, fonts, clothing-inspired animations, animation technique, and changed screens.
 
-- [ ] Audit interaction, haptics, performance, preprocessing, AI rubric, and duplicate-analysis behavior against the new brief.
-- [ ] Define and implement a fixed scoring rubric with mathematically derived overall score and stable structured output without changing the app’s core purpose.
-- [ ] Add safe exact-image fingerprint reuse plus selective haptics and tactile interaction feedback for important events only.
-- [ ] Optimize motion/image/API behavior, validate repeatability with identical and different outfits, and document the results.
+- [x] Audit interaction, haptics, performance, preprocessing, AI rubric, and duplicate-analysis behavior against the new brief.
+- [x] Define and implement a fixed scoring rubric with mathematically derived overall score and stable structured output without changing the app’s core purpose.
+- [x] Add safe exact-image fingerprint reuse plus selective haptics and tactile interaction feedback for important events only.
+- [x] Optimize motion/image/API behavior, validate repeatability with identical and different outfits, and document the results.
 
 - [x] Verify the selected GitHub repository is the intended empty target and audit the source tree for completeness and secret protection.
 - [x] Commit and push the validated FitCheck source to Harsha122006/Fitcheckai on main.
 - [x] Verify the pushed repository contents and record the exact next steps for using it as the user’s project.
 - [x] Write a concise post-push GitHub handoff note with the repository URL, clone instructions, and immediate Vercel import steps.
+- [x] Add regression tests for stable image fingerprints, mathematically derived scores, and optional haptic fallback behavior.
+- [ ] Either extend exact-image reuse to public analysis or explicitly scope and document it as authenticated-history-only.
+- [ ] Run and record repeatability validation for repeated identical and clearly different outfits.
+- [ ] Ensure the haptics fallback test is included in the actual Vitest run and record its passing output.
