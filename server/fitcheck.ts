@@ -106,7 +106,7 @@ First make a lightweight image-quality assessment: determine whether a person or
 
 Analyze ONLY visible evidence. Never invent or assume shoes, accessories, brands, colors, materials, logos, patterns, garment details, proportions, or fit. If an item or category is outside the frame, set that category score to null, visibility to not_visible, and explain why. If visibility is unclear, use score null and visibility unclear. Missing categories are not bad scores and must not lower the overall score.
 
-Evaluate these categories when visible: outfit cohesion, color coordination, fit and silhouette, shoes, and styling. Calculate overall_score using only categories with visibility visible and these weights renormalized across the visible categories: outfit 30%, color 20%, fit 20%, shoes 15%, styling 15%. Do not give automatic high scores; use the full 0–10 range honestly. A lower confidence result can still have a useful score when image_quality is good or usable.
+Evaluate these categories when visible: outfit cohesion, color coordination, fit and silhouette, shoes, and styling/presentation. Score each category independently against the same fixed 0–10 rubric: 0–2 extremely poor, 3–4 weak, 5 average, 6 decent, 7 good, 8 very good, 9 excellent, 10 exceptional. Do not give automatic high scores; use the full range honestly. The server will mathematically derive overall_score after your response, so do not optimize or invent overall_score; return a neutral placeholder consistent with the schema. The server rubric weights are fixed: outfit cohesion 30%, color 20%, fit/silhouette 20%, shoes 15%, styling/presentation 15%, renormalized only across visible categories. A lower confidence result can still have a useful score when image_quality is good or usable.
 
 Return JSON only. Keep every reason and summary grounded in visible clothing. Mention unavailable categories in the summary when useful. Never comment on attractiveness, body shape, weight, age, gender, identity, or the person as a person.`;
 
@@ -283,8 +283,9 @@ export async function analyzeFitWithGemini({ imageDataUrl, category, signal }: {
       const response = await invokeLLM({
         model: ENV.geminiModel,
         signal: controller.signal,
-        maxTokens: 3200,
-        messages: [
+            maxTokens: 3200,
+            temperature: 0,
+            messages: [
           { role: "system", content: systemInstruction },
           { role: "user", content: [
             { type: "image_url", image_url: { url: `data:${mimeType};base64,${data}`, detail: "high" } },

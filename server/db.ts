@@ -61,6 +61,7 @@ export async function createOutfitRecord(input: {
   requestId: string;
   imageKey: string;
   imageUrl: string;
+  imageFingerprint?: string;
   originalName?: string;
   category?: string;
 }) {
@@ -69,6 +70,18 @@ export async function createOutfitRecord(input: {
   await db.insert(outfits).values({ ...input, analysisStatus: "processing" }).onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
   const rows = await db.select().from(outfits).where(and(eq(outfits.userId, input.userId), eq(outfits.requestId, input.requestId))).limit(1);
   if (!rows[0]) throw new Error("Failed to create outfit record");
+  return rows[0];
+}
+
+export async function findCompletedOutfitByFingerprint(userId: number, imageFingerprint: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select({ outfit: outfits, analysis: outfitAnalyses })
+    .from(outfits)
+    .innerJoin(outfitAnalyses, eq(outfits.id, outfitAnalyses.outfitId))
+    .where(and(eq(outfits.userId, userId), eq(outfits.imageFingerprint, imageFingerprint), eq(outfits.analysisStatus, "completed")))
+    .orderBy(desc(outfits.createdAt))
+    .limit(1);
   return rows[0];
 }
 

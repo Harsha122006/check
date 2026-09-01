@@ -21,6 +21,7 @@ export const outfits = mysqlTable("outfits", {
   requestId: varchar("requestId", { length: 64 }).notNull(),
   imageKey: varchar("imageKey", { length: 512 }).notNull(),
   imageUrl: varchar("imageUrl", { length: 768 }).notNull(),
+  imageFingerprint: varchar("imageFingerprint", { length: 64 }),
   originalName: varchar("originalName", { length: 255 }),
   category: varchar("category", { length: 32 }),
   analysisStatus: mysqlEnum("analysisStatus", ["processing", "completed", "failed"]).default("processing").notNull(),
@@ -29,6 +30,7 @@ export const outfits = mysqlTable("outfits", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   userCreatedIdx: index("outfits_user_created_idx").on(table.userId, table.createdAt),
+  userFingerprintIdx: index("outfits_user_fingerprint_idx").on(table.userId, table.imageFingerprint),
   requestUniqueIdx: uniqueIndex("outfits_user_request_unique").on(table.userId, table.requestId),
 }));
 

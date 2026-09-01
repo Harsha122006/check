@@ -69,6 +69,7 @@ export type InvokeParams = {
   model?: string;
   thinking?: Record<string, unknown>;
   reasoning?: Record<string, unknown>;
+  temperature?: number;
   signal?: AbortSignal;
 };
 
@@ -363,6 +364,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     model,
     thinking,
     reasoning,
+    temperature,
     maxTokens,
     max_tokens,
     signal,
@@ -398,6 +400,9 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   }
   if (reasoning) {
     payload.reasoning = reasoning;
+  }
+  if (typeof temperature === "number") {
+    payload.temperature = temperature;
   }
 
   const normalizedResponseFormat = normalizeResponseFormat({

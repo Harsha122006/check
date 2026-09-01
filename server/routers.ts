@@ -5,8 +5,9 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import type { TrpcContext } from "./_core/context";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { analyzeFitWithGemini, FitCheckError } from "./fitcheck";
-import { createOutfitRecord, completeOutfitRecord, deleteUserOutfit, failOutfitRecord, getUserOutfit, listUserOutfits } from "./db";
+import { createHash } from "node:crypto";
+import { analyzeFitWithGemini, FitCheckError, type FitCheckResult } from "./fitcheck";
+import { createOutfitRecord, completeOutfitRecord, deleteUserOutfit, failOutfitRecord, findCompletedOutfitByFingerprint, getUserOutfit, listUserOutfits } from "./db";
 import { storagePut } from "./storage";
 
 function mapFitCheckError(error: unknown): TRPCError {
@@ -36,6 +37,37 @@ function dataUrlToBytes(imageDataUrl: string) {
   const match = imageDataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
   if (!match) throw new TRPCError({ code: "BAD_REQUEST", message: "Try a JPG, PNG, or WebP image file." });
   return { mimeType: match[1], bytes: Buffer.from(match[2], "base64") };
+}
+
+function fingerprintImage(bytes: Buffer) {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function cachedAnalysisToResult(analysis: NonNullable<Awaited<ReturnType<typeof findCompletedOutfitByFingerprint>>>["analysis"]): FitCheckResult {
+  const coverage = analysis.coverage as FitCheckResult["coverage"];
+  const unavailable = coverage.unavailable_categories;
+  const category = (value: number | null, key: keyof FitCheckResult["scores"]) => ({
+    score: value === null ? null : value / 10,
+    visibility: unavailable.includes(key) ? "not_visible" as const : "visible" as const,
+    reason: unavailable.includes(key) ? "Not visible in this frame." : "Evaluated from the visible frame.",
+  });
+  return {
+    overall_score: analysis.overallScore / 10,
+    confidence: analysis.confidence / 100,
+    image_quality: "good",
+    coverage,
+    scores: {
+      outfit: category(analysis.outfitScore, "outfit"),
+      color: category(analysis.colorScore, "color"),
+      fit: category(analysis.fitScore, "fit"),
+      shoes: category(analysis.shoesScore, "shoes"),
+      styling: category(analysis.stylingScore, "styling"),
+    },
+    verdict: analysis.verdict,
+    strengths: analysis.strengths,
+    improvements: analysis.improvements,
+    summary: analysis.summary,
+  };
 }
 
 async function analyzeWithAbort(ctx: Pick<TrpcContext, "req">, input: z.infer<typeof analysisInput>) {
@@ -74,8 +106,13 @@ export const appRouter = router({
 
     analyzeAndPersist: protectedProcedure.input(analysisInput.extend({ requestId: z.string().uuid(), originalName: z.string().trim().max(255).optional() })).mutation(async ({ ctx, input }) => {
       const { mimeType, bytes } = dataUrlToBytes(input.imageDataUrl);
+      const imageFingerprint = fingerprintImage(bytes);
+      const cached = await findCompletedOutfitByFingerprint(ctx.user.id, imageFingerprint);
+      if (cached?.analysis) {
+        return { outfitId: cached.outfit.id, imageUrl: cached.outfit.imageUrl, result: cachedAnalysisToResult(cached.analysis), cached: true as const };
+      }
       const storage = await storagePut(`outfits/${ctx.user.id}/${input.requestId}/original`, bytes, mimeType);
-      const outfit = await createOutfitRecord({ userId: ctx.user.id, requestId: input.requestId, imageKey: storage.key, imageUrl: storage.url, originalName: input.originalName, category: input.category });
+      const outfit = await createOutfitRecord({ userId: ctx.user.id, requestId: input.requestId, imageKey: storage.key, imageUrl: storage.url, imageFingerprint, originalName: input.originalName, category: input.category });
       try {
         const result = await analyzeWithAbort(ctx, input);
         await completeOutfitRecord(outfit.id, result);

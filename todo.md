@@ -59,3 +59,12 @@
 - [x] Validate refreshed upload, analyzing, results, and archive styling through the existing route/state wiring, responsive CSS, successful build, prior authenticated result-flow coverage, and new desktop/mobile home renders; no additional AI run was required.
 - [x] Add explicit page-transition refinements in the existing route transition wrapper and preserve reduced-motion fallbacks for decorative and entrance motion.
 - [x] Create FITCHECK_DESIGN_REFRESH.md documenting selected colors, fonts, clothing-inspired animations, animation technique, and changed screens.
+
+- [ ] Audit interaction, haptics, performance, preprocessing, AI rubric, and duplicate-analysis behavior against the new brief.
+- [ ] Define and implement a fixed scoring rubric with mathematically derived overall score and stable structured output without changing the app’s core purpose.
+- [ ] Add safe exact-image fingerprint reuse plus selective haptics and tactile interaction feedback for important events only.
+- [ ] Optimize motion/image/API behavior, validate repeatability with identical and different outfits, and document the results.
+
+- [ ] Verify the selected GitHub repository is the intended empty target and audit the source tree for completeness and secret protection.
+- [ ] Commit and push the validated FitCheck source to Harsha122006/Fitcheckai on main.
+- [ ] Verify the pushed repository contents and record the exact next steps for using it as the user’s project.
