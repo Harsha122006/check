@@ -450,3 +450,42 @@ body { font-family: var(--body); font-size: 15px; }
   .analysis-copy h1 { font-size: clamp(58px, 16vw, 80px); }
   .premium-results-header { letter-spacing: .02em; }
 }
+
+/* Minimal result read: score first, useful clothing feedback second. */
+.premium-results--minimal { max-width: 920px; margin: 0 auto; }
+.minimal-score-stage { position: relative; min-height: 310px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line, #d8e0e3); border-radius: 28px; background: linear-gradient(135deg, rgba(255,255,255,.92), rgba(235,246,248,.82)); }
+.minimal-score-content { position: relative; z-index: 2; display: grid; justify-items: center; gap: 10px; text-align: center; }
+.minimal-score-verdict { margin: 0; max-width: 18rem; font-size: clamp(1.15rem, 2.5vw, 1.55rem); font-weight: 500; letter-spacing: -.03em; }
+.minimal-score-photo { position: absolute; right: 8%; bottom: -8%; z-index: 1; width: 118px; height: 154px; object-fit: cover; border-radius: 18px; opacity: .18; filter: saturate(.7); transform: rotate(6deg); }
+.minimal-score-orbit { position: absolute; width: 230px; height: 230px; border: 1px solid rgba(43, 102, 255, .18); border-radius: 50%; animation: result-orbit 12s linear infinite; }
+.minimal-score-orbit::before { content: ""; position: absolute; inset: 24px; border: 1px dashed rgba(255, 106, 99, .22); border-radius: 50%; }
+.minimal-score-orbit span { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #ff6a63; box-shadow: 0 0 0 5px rgba(255,106,99,.12); }
+.minimal-score-orbit span:nth-child(1) { top: 12px; left: 50%; }
+.minimal-score-orbit span:nth-child(2) { right: 18px; bottom: 56px; background: #2b66ff; box-shadow: 0 0 0 5px rgba(43,102,255,.12); }
+.minimal-score-orbit span:nth-child(3) { left: 26px; bottom: 42px; background: #f2bb43; box-shadow: 0 0 0 5px rgba(242,187,67,.14); }
+.minimal-breakdown { margin-top: 28px; padding: 22px 24px 8px; border-top: 1px solid var(--line, #d8e0e3); }
+.minimal-section-heading { display: flex; justify-content: space-between; margin-bottom: 14px; color: #6e7b80; font-size: 10px; letter-spacing: .12em; }
+.premium-results--minimal .breakdown-list { display: grid; gap: 10px; }
+.premium-results--minimal .breakdown-item { padding: 11px 0 13px; border-bottom: 1px solid rgba(216,224,227,.72); }
+.premium-results--minimal .breakdown-label { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 8px; font-size: 14px; }
+.premium-results--minimal .breakdown-label strong { color: #2b66ff; font-size: 12px; font-weight: 600; }
+.premium-results--minimal .breakdown-track { height: 9px; overflow: hidden; border-radius: 99px; background: #e5edef; }
+.premium-results--minimal .breakdown-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2b66ff, #75a0ff); box-shadow: 0 0 0 1px rgba(43,102,255,.08); }
+.premium-results--minimal .breakdown-item.is-complete .breakdown-track span { box-shadow: 0 0 14px rgba(43,102,255,.24); }
+.minimal-feedback-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.minimal-feedback-card { min-height: 104px; padding: 17px 18px; border: 1px solid var(--line, #d8e0e3); border-radius: 18px; background: rgba(255,255,255,.74); }
+.minimal-feedback-card--accent { background: #fff8ee; border-color: #f0d8ae; }
+.minimal-feedback-card .mono { color: #7a8588; font-size: 10px; letter-spacing: .1em; }
+.minimal-feedback-card p { margin: 14px 0 0; color: #20272b; font-size: 15px; line-height: 1.42; }
+@keyframes result-orbit { to { transform: rotate(360deg); } }
+@media (max-width: 640px) {
+  .minimal-score-stage { min-height: 278px; border-radius: 22px; }
+  .minimal-score-photo { right: -2%; width: 92px; height: 124px; opacity: .12; }
+  .minimal-score-orbit { width: 204px; height: 204px; }
+  .minimal-breakdown { margin-top: 22px; padding: 18px 4px 4px; }
+  .minimal-feedback-grid { grid-template-columns: 1fr; }
+  .premium-results--minimal .premium-result-actions { grid-template-columns: 1fr 1fr; }
+  .premium-results--minimal .premium-primary-action { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { .minimal-score-orbit { animation: none; }
+}

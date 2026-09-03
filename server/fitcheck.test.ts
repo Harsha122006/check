@@ -39,6 +39,18 @@ describe("FitCheck result normalization", () => {
     expect(result.coverage.unavailable_categories).toContain("shoes");
   });
 
+  it("does not penalize visible clothing when image quality metadata is insufficient", () => {
+    const result = normalizeResult({
+      ...base,
+      image_quality: "insufficient",
+      confidence: 0.2,
+      coverage: { visible_categories: ["outfit", "color"], unavailable_categories: ["fit", "shoes", "styling"] },
+      scores: { ...base.scores, fit: category(null, "not_visible", "Lower body is outside the frame."), shoes: category(null, "not_visible", "Shoes are outside the frame."), styling: category(null, "not_visible", "Styling details are outside the frame.") },
+    });
+    expect(result.overall_score).toBe(8.6);
+    expect(result.overall_score).toBeGreaterThan(0);
+  });
+
   it("keeps usable upper-body photos scorable with unavailable categories marked not_visible", () => {
     const result = normalizeResult({
       ...base,

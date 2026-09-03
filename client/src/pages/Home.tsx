@@ -853,6 +853,11 @@ function AnimatedCategoryBar({ label, score, index }: { label: string; score: nu
   );
 }
 
+function conciseLine(value: string | undefined, fallback: string) {
+  const line = value?.replace(/\s+/g, " ").trim().replace(/\s*([.!?]).*$/, "$1") || fallback;
+  return line.length > 96 ? `${line.slice(0, 93).trimEnd()}…` : line;
+}
+
 function PremiumResultsView({
   photo,
   result,
@@ -872,47 +877,41 @@ function PremiumResultsView({
   const live = result ?? fallback;
   const breakdown = [
     { label: "Fit", category: live.scores.fit },
-    { label: "Color combination", category: live.scores.color },
+    { label: "Colors", category: live.scores.color },
     { label: "Style", category: live.scores.styling },
-    { label: "Overall presentation", category: live.scores.outfit },
+    { label: "Cohesion", category: live.scores.outfit },
   ];
+  const working = conciseLine(live.strengths[0], "Clean clothing choices with a clear direction.");
+  const change = conciseLine(live.improvements[0], "Try one cleaner clothing adjustment.");
 
   return (
-    <section className="premium-results">
+    <section className="premium-results premium-results--minimal">
       <div className="premium-results-header">
-        <span className="mono">FIT CHECK / YOUR RESULT</span>
-        <span className="mono">FIT Nº 014</span>
+        <span className="mono">FIT CHECK / RESULT</span>
+        <span className="mono">YOUR OUTFIT</span>
       </div>
-      <div className="result-hero-card">
-        <div className="result-hero-photo"><img src={photo} alt="Your uploaded outfit" /><span className="result-photo-label">YOUR OUTFIT</span></div>
-        <div className="result-score-panel">
-          <span className="mono score-kicker">Your fit score</span>
+
+      <div className="minimal-score-stage">
+        <div className="minimal-score-orbit" aria-hidden="true"><span /><span /><span /></div>
+        <div className="minimal-score-content">
+          <span className="mono score-kicker">FIT SCORE</span>
           <AnimatedScore score={live.overall_score} />
-          <h2 className="premium-verdict">{live.verdict}</h2>
-          <p className="premium-score-note">{live.summary}</p>{live.coverage.unavailable_categories.length > 0 && <p className="coverage-note">Not visible: {live.coverage.unavailable_categories.join(", ")}.</p>}
+          <h1 className="minimal-score-verdict">{live.verdict}</h1>
+          {live.coverage.unavailable_categories.length > 0 && <p className="coverage-note">Some clothing is outside the frame.</p>}
         </div>
+        <img className="minimal-score-photo" src={photo} alt="Your uploaded outfit" />
       </div>
 
-      <div className="premium-result-grid">
-        <div className="premium-main-column">
-          <section className="result-section breakdown-card">
-            <div className="result-section-heading"><div><span className="mono">01 / QUICK READ</span><h3>The breakdown</h3></div><span className="section-badge">{live.coverage.visible_categories.length} visible</span></div>
-            <div className="breakdown-list" aria-label="Category scores">
-              {breakdown.map((item, index) => <AnimatedCategoryBar key={item.label} label={item.label} score={item.category.score} index={index} />)}
-            </div>
-          </section>
-
-          <section className="result-section feedback-card">
-            <span className="mono">02 / AI feedback</span>
-            <h3>What we noticed</h3>
-            <p>{live.summary}</p>
-          </section>
+      <section className="minimal-breakdown" aria-labelledby="score-breakdown-title">
+        <div className="minimal-section-heading"><span className="mono" id="score-breakdown-title">CATEGORY SCORES</span><span className="mono">OUT OF 10</span></div>
+        <div className="breakdown-list" aria-label="Category scores">
+          {breakdown.map((item, index) => <AnimatedCategoryBar key={item.label} label={item.label} score={item.category.score} index={index} />)}
         </div>
+      </section>
 
-        <aside className="premium-side-column">
-          <section className="level-up-card"><span className="mono">One thing I’d change</span><h3>One small move.</h3><p>{live.improvements[0] ?? "Try one small styling adjustment and check the balance again."}</p><span className="level-up-arrow">↗</span></section>
-          <div className="result-meta-card"><span className="mono">WHAT’S WORKING</span><strong>{live.strengths[0] ?? "Strong visual balance"}</strong><span className="mono">CONFIDENCE / {Math.round(live.confidence * 100)}%</span></div>
-        </aside>
+      <div className="minimal-feedback-grid">
+        <section className="minimal-feedback-card"><span className="mono">WHAT’S WORKING</span><p>{working}</p></section>
+        <section className="minimal-feedback-card minimal-feedback-card--accent"><span className="mono">SMALL CHANGE</span><p>{change}</p></section>
       </div>
 
       <div className="premium-result-actions">

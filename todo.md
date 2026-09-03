@@ -76,3 +76,9 @@
 - [x] Add repeatability tests using real normalized image payload fixtures for identical and clearly different images.
 - [x] Document that current repeatability evidence is fixture-backed deterministic validation; live multi-upload comparison remains browser/provider dependent.
 - [x] Add an explicit repeatability-validation scope disclaimer to AI_CONSISTENCY.md or the validation report.
+
+- [x] Simplify the result screen to one animated score, four compact category bars, one short “What’s working” line, and one short “Small change” line without changing scores or existing flows.
+- [x] Tighten the AI contract so scoring and generated text refer only to visible clothing, never the person, pose, face, body, background, lighting, or image quality.
+- [x] Test the mobile upload → analysis → result flow, concise output bounds, visibility handling, consistency, and production build; 29 tests, TypeScript, production build, and narrow mobile shell render passed. A fresh live AI mobile upload comparison remains provider/browser dependent.
+- [x] Ensure image quality never directly lowers or zeroes outfit quality when visible clothing categories can still be evaluated; keep it separate from confidence.
+- [x] Correct the mobile-flow validation record to distinguish shell/render and automated coverage from a live mobile upload-to-result run that is not available in this environment.
