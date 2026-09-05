@@ -15,6 +15,7 @@ const base = {
     fit: category(7),
     shoes: category(6),
     styling: category(5),
+    occasion_suitability: category(8, "visible", "Suitable for the selected occasion."),
   },
   verdict: "Strong balance.",
   strengths: ["Clear color story"],
@@ -25,7 +26,24 @@ const base = {
 describe("FitCheck result normalization", () => {
   it("calculates the overall score from fixed weights when every category is visible", () => {
     const result = normalizeResult(base);
-    expect(result.overall_score).toBe(7.3);
+    expect(result.overall_score).toBe(7.4);
+  });
+
+  it("lets occasion suitability influence the overall score while other categories stay fixed", () => {
+    const lowerOccasionFit = normalizeResult({ ...base, occasion: "Formal", scores: { ...base.scores, occasion_suitability: category(4, "visible", "Too casual for the selected occasion.") } });
+    const higherOccasionFit = normalizeResult({ ...base, occasion: "Formal", scores: { ...base.scores, occasion_suitability: category(9, "visible", "Well suited to the selected occasion.") } });
+    expect(higherOccasionFit.overall_score).toBeGreaterThan(lowerOccasionFit.overall_score);
+    expect(higherOccasionFit.scores.fit.score).toBe(lowerOccasionFit.scores.fit.score);
+    expect(higherOccasionFit.occasion).toBe("Formal");
+  });
+
+  it("produces distinct occasion-aware outputs for the same outfit fixture", () => {
+    const casual = normalizeResult({ ...base, occasion: "Casual", scores: { ...base.scores, occasion_suitability: category(8.5, "visible", "Works for an everyday casual setting.") } });
+    const formal = normalizeResult({ ...base, occasion: "Formal", scores: { ...base.scores, occasion_suitability: category(5.5, "visible", "Too relaxed for a formal setting.") } });
+    expect(casual.occasion).toBe("Casual");
+    expect(formal.occasion).toBe("Formal");
+    expect(casual.overall_score).toBeGreaterThan(formal.overall_score);
+    expect(casual.improvements).toEqual(formal.improvements);
   });
 
   it("renormalizes weights when shoes are not visible instead of treating them as zero", () => {
@@ -34,7 +52,7 @@ describe("FitCheck result normalization", () => {
       coverage: { visible_categories: ["outfit", "color", "fit", "styling"], unavailable_categories: ["shoes"] },
       scores: { ...base.scores, shoes: category(null, "not_visible", "Shoes are outside the image frame.") },
     });
-    expect(result.overall_score).toBe(7.6);
+    expect(result.overall_score).toBe(7.5);
     expect(result.scores.shoes.score).toBeNull();
     expect(result.coverage.unavailable_categories).toContain("shoes");
   });
@@ -47,7 +65,7 @@ describe("FitCheck result normalization", () => {
       coverage: { visible_categories: ["outfit", "color"], unavailable_categories: ["fit", "shoes", "styling"] },
       scores: { ...base.scores, fit: category(null, "not_visible", "Lower body is outside the frame."), shoes: category(null, "not_visible", "Shoes are outside the frame."), styling: category(null, "not_visible", "Styling details are outside the frame.") },
     });
-    expect(result.overall_score).toBe(8.6);
+    expect(result.overall_score).toBe(8.3);
     expect(result.overall_score).toBeGreaterThan(0);
   });
 
@@ -59,7 +77,7 @@ describe("FitCheck result normalization", () => {
       coverage: { visible_categories: ["outfit", "color", "styling"], unavailable_categories: ["fit", "shoes"] },
       scores: { ...base.scores, fit: category(null, "not_visible", "Lower-body proportions are outside the frame."), shoes: category(null, "not_visible", "Shoes are outside the image frame.") },
     });
-    expect(result.overall_score).toBe(7.8);
+    expect(result.overall_score).toBe(7.6);
     expect(result.overall_score).toBeGreaterThan(0);
     expect(result.scores.fit.score).toBeNull();
     expect(result.scores.shoes.score).toBeNull();
@@ -71,7 +89,7 @@ describe("FitCheck result normalization", () => {
       image_quality: "insufficient",
       confidence: 0.2,
       coverage: { visible_categories: [], unavailable_categories: ["outfit", "color", "fit", "shoes", "styling"] },
-      scores: { outfit: category(null, "not_visible", "No clothing is visible."), color: category(null, "not_visible", "No clothing is visible."), fit: category(null, "not_visible", "No clothing is visible."), shoes: category(null, "not_visible", "No clothing is visible."), styling: category(null, "not_visible", "No clothing is visible.") },
+      scores: { outfit: category(null, "not_visible", "No clothing is visible."), color: category(null, "not_visible", "No clothing is visible."), fit: category(null, "not_visible", "No clothing is visible."), shoes: category(null, "not_visible", "No clothing is visible."), styling: category(null, "not_visible", "No clothing is visible."), occasion_suitability: category(null, "not_visible", "No clothing is visible.") },
     });
     expect(result.overall_score).toBe(0);
     expect(result.verdict).toBe("Can’t judge this fit reliably.");
@@ -170,7 +188,7 @@ describe("FitCheck request safety guards", () => {
 describe("FitCheck quality and honest scoring", () => {
   it("keeps a slightly blurry but usable outfit scorable", () => {
     const result = normalizeResult({ ...base, image_quality: "usable", confidence: 0.62 });
-    expect(result.overall_score).toBe(7.3);
+    expect(result.overall_score).toBe(7.4);
     expect(result.overall_score).toBeGreaterThan(0);
   });
 
@@ -180,7 +198,7 @@ describe("FitCheck quality and honest scoring", () => {
       image_quality: "insufficient",
       confidence: 0.12,
       coverage: { visible_categories: [], unavailable_categories: ["outfit", "color", "fit", "shoes", "styling"] },
-      scores: { outfit: category(null, "unclear", "The image is too dark."), color: category(null, "unclear", "The image is too dark."), fit: category(null, "unclear", "The image is too dark."), shoes: category(null, "unclear", "The image is too dark."), styling: category(null, "unclear", "The image is too dark.") },
+      scores: { outfit: category(null, "unclear", "The image is too dark."), color: category(null, "unclear", "The image is too dark."), fit: category(null, "unclear", "The image is too dark."), shoes: category(null, "unclear", "The image is too dark."), styling: category(null, "unclear", "The image is too dark."), occasion_suitability: category(null, "unclear", "The image is too dark.") },
     });
     expect(result.overall_score).toBe(0);
     expect(result.verdict).toBe("Can’t judge this fit reliably.");

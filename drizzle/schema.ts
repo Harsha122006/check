@@ -45,6 +45,7 @@ export const outfitAnalyses = mysqlTable("outfit_analyses", {
   fitScore: int("fitScore"),
   shoesScore: int("shoesScore"),
   stylingScore: int("stylingScore"),
+  occasionSuitabilityScore: int("occasionSuitabilityScore"),
   overallScore: int("overallScore").notNull(),
   confidence: int("confidence").notNull(),
   verdict: text("verdict").notNull(),

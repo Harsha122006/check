@@ -15,6 +15,7 @@ const baseResult: FitCheckResult = {
     fit: { score: 8.1, visibility: "visible", reason: "silhouette" },
     shoes: { score: 6.9, visibility: "visible", reason: "footwear" },
     styling: { score: 7.5, visibility: "visible", reason: "details" },
+    occasion_suitability: { score: 8.0, visibility: "visible", reason: "occasion" },
   },
   verdict: "Balanced casual fit.",
   strengths: ["Clear color direction"],
@@ -40,7 +41,7 @@ describe("deterministic image analysis foundations", () => {
   it("derives the same rounded weighted score from the same structured categories", () => {
     const first = normalizeResult(baseResult);
     const second = normalizeResult({ ...baseResult, overall_score: 9.9 });
-    expect(first.overall_score).toBe(7.6);
+    expect(first.overall_score).toBe(7.7);
     expect(second.overall_score).toBe(first.overall_score);
   });
 });

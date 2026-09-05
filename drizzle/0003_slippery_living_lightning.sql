@@ -1,0 +1,1 @@
+ALTER TABLE `outfit_analyses` ADD `occasionSuitabilityScore` int;

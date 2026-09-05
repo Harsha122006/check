@@ -9,9 +9,9 @@ import { analyzeFitWithGemini, FitCheckError, type FitCheckResult } from "./fitc
 import { createOutfitRecord, completeOutfitRecord, deleteUserOutfit, failOutfitRecord, findCompletedOutfitByFingerprint, getUserOutfit, listUserOutfits } from "./db";
 import { storagePut } from "./storage";
 import { fingerprintImageBytes } from "./imageFingerprint";
+import { buildAnalysisCacheKey, PUBLIC_ANALYSIS_CACHE_LIMIT, trimAnalysisCache } from "./analysisCache";
 
 const publicAnalysisCache = new Map<string, FitCheckResult>();
-const PUBLIC_CACHE_LIMIT = 32;
 
 function mapFitCheckError(error: unknown): TRPCError {
   if (error instanceof FitCheckError) {
@@ -34,6 +34,7 @@ function mapFitCheckError(error: unknown): TRPCError {
 const analysisInput = z.object({
   imageDataUrl: z.string().min(32).max(750_000),
   category: z.string().trim().max(32).optional(),
+  occasion: z.string().trim().max(32).optional(),
 });
 
 function dataUrlToBytes(imageDataUrl: string) {
@@ -42,7 +43,8 @@ function dataUrlToBytes(imageDataUrl: string) {
   return { mimeType: match[1], bytes: Buffer.from(match[2], "base64") };
 }
 
-function cachedAnalysisToResult(analysis: NonNullable<Awaited<ReturnType<typeof findCompletedOutfitByFingerprint>>>["analysis"]): FitCheckResult {
+function cachedAnalysisToResult(cached: NonNullable<Awaited<ReturnType<typeof findCompletedOutfitByFingerprint>>>): FitCheckResult {
+  const { analysis } = cached;
   const coverage = analysis.coverage as FitCheckResult["coverage"];
   const unavailable = coverage.unavailable_categories;
   const category = (value: number | null, key: keyof FitCheckResult["scores"]) => ({
@@ -61,7 +63,9 @@ function cachedAnalysisToResult(analysis: NonNullable<Awaited<ReturnType<typeof 
       fit: category(analysis.fitScore, "fit"),
       shoes: category(analysis.shoesScore, "shoes"),
       styling: category(analysis.stylingScore, "styling"),
+      occasion_suitability: category(analysis.occasionSuitabilityScore ?? null, "occasion_suitability"),
     },
+    occasion: cached.outfit.category ?? undefined,
     verdict: analysis.verdict,
     strengths: analysis.strengths,
     improvements: analysis.improvements,
@@ -97,15 +101,13 @@ export const appRouter = router({
     analyze: publicProcedure.input(analysisInput).mutation(async ({ ctx, input }) => {
       try {
         const { bytes } = dataUrlToBytes(input.imageDataUrl);
-        const cacheKey = `${fingerprintImageBytes(bytes)}:${input.category ?? ""}`;
+        const occasion = input.occasion ?? input.category ?? "Casual";
+        const cacheKey = buildAnalysisCacheKey(fingerprintImageBytes(bytes), occasion);
         const cached = publicAnalysisCache.get(cacheKey);
         if (cached) return cached;
-        const result = await analyzeWithAbort(ctx, input);
+        const result = await analyzeWithAbort(ctx, { ...input, category: occasion, occasion });
         publicAnalysisCache.set(cacheKey, result);
-        if (publicAnalysisCache.size > PUBLIC_CACHE_LIMIT) {
-          const oldestKey = publicAnalysisCache.keys().next().value;
-          if (oldestKey) publicAnalysisCache.delete(oldestKey);
-        }
+        trimAnalysisCache(publicAnalysisCache, PUBLIC_ANALYSIS_CACHE_LIMIT);
         return result;
       } catch (error) {
         if (!(error instanceof FitCheckError) || error.code !== "REQUEST_CANCELLED") console.error("[FitCheck] request failed", error);
@@ -116,14 +118,15 @@ export const appRouter = router({
     analyzeAndPersist: protectedProcedure.input(analysisInput.extend({ requestId: z.string().uuid(), originalName: z.string().trim().max(255).optional() })).mutation(async ({ ctx, input }) => {
       const { mimeType, bytes } = dataUrlToBytes(input.imageDataUrl);
       const imageFingerprint = fingerprintImageBytes(bytes);
-      const cached = await findCompletedOutfitByFingerprint(ctx.user.id, imageFingerprint);
+      const occasion = input.occasion ?? input.category ?? "Casual";
+      const cached = await findCompletedOutfitByFingerprint(ctx.user.id, imageFingerprint, occasion);
       if (cached?.analysis) {
-        return { outfitId: cached.outfit.id, imageUrl: cached.outfit.imageUrl, result: cachedAnalysisToResult(cached.analysis), cached: true as const };
+        return { outfitId: cached.outfit.id, imageUrl: cached.outfit.imageUrl, result: cachedAnalysisToResult(cached), cached: true as const };
       }
       const storage = await storagePut(`outfits/${ctx.user.id}/${input.requestId}/original`, bytes, mimeType);
-      const outfit = await createOutfitRecord({ userId: ctx.user.id, requestId: input.requestId, imageKey: storage.key, imageUrl: storage.url, imageFingerprint, originalName: input.originalName, category: input.category });
+      const outfit = await createOutfitRecord({ userId: ctx.user.id, requestId: input.requestId, imageKey: storage.key, imageUrl: storage.url, imageFingerprint, originalName: input.originalName, category: occasion });
       try {
-        const result = await analyzeWithAbort(ctx, input);
+        const result = await analyzeWithAbort(ctx, { ...input, category: occasion, occasion });
         await completeOutfitRecord(outfit.id, result);
         return { outfitId: outfit.id, imageUrl: storage.url, result };
       } catch (error) {

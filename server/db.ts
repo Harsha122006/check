@@ -73,20 +73,20 @@ export async function createOutfitRecord(input: {
   return rows[0];
 }
 
-export async function findCompletedOutfitByFingerprint(userId: number, imageFingerprint: string) {
+export async function findCompletedOutfitByFingerprint(userId: number, imageFingerprint: string, occasion?: string) {
   const db = await getDb();
   if (!db) return undefined;
   const rows = await db.select({ outfit: outfits, analysis: outfitAnalyses })
     .from(outfits)
     .innerJoin(outfitAnalyses, eq(outfits.id, outfitAnalyses.outfitId))
-    .where(and(eq(outfits.userId, userId), eq(outfits.imageFingerprint, imageFingerprint), eq(outfits.analysisStatus, "completed")))
+    .where(and(eq(outfits.userId, userId), eq(outfits.imageFingerprint, imageFingerprint), eq(outfits.analysisStatus, "completed"), occasion ? eq(outfits.category, occasion) : undefined))
     .orderBy(desc(outfits.createdAt))
     .limit(1);
   return rows[0];
 }
 
 export async function completeOutfitRecord(outfitId: number, result: {
-  scores: { outfit: { score: number | null }; color: { score: number | null }; fit: { score: number | null }; shoes: { score: number | null }; styling: { score: number | null } };
+  scores: { outfit: { score: number | null }; color: { score: number | null }; fit: { score: number | null }; shoes: { score: number | null }; styling: { score: number | null }; occasion_suitability?: { score: number | null } };
   overall_score: number;
   confidence: number;
   verdict: string;
@@ -104,6 +104,7 @@ export async function completeOutfitRecord(outfitId: number, result: {
     fitScore: result.scores.fit.score === null ? null : Math.round(result.scores.fit.score * 10),
     shoesScore: result.scores.shoes.score === null ? null : Math.round(result.scores.shoes.score * 10),
     stylingScore: result.scores.styling.score === null ? null : Math.round(result.scores.styling.score * 10),
+    occasionSuitabilityScore: !result.scores.occasion_suitability || result.scores.occasion_suitability.score === null ? null : Math.round(result.scores.occasion_suitability.score * 10),
     overallScore: Math.round(result.overall_score * 10),
     confidence: Math.round(result.confidence * 100),
     verdict: result.verdict,
@@ -111,7 +112,7 @@ export async function completeOutfitRecord(outfitId: number, result: {
     strengths: result.strengths,
     improvements: result.improvements,
     coverage: result.coverage,
-  }).onDuplicateKeyUpdate({ set: { overallScore: Math.round(result.overall_score * 10), confidence: Math.round(result.confidence * 100), verdict: result.verdict, summary: result.summary, strengths: result.strengths, improvements: result.improvements, coverage: result.coverage } });
+  }).onDuplicateKeyUpdate({ set: { overallScore: Math.round(result.overall_score * 10), confidence: Math.round(result.confidence * 100), verdict: result.verdict, summary: result.summary, strengths: result.strengths, improvements: result.improvements, coverage: result.coverage, occasionSuitabilityScore: !result.scores.occasion_suitability || result.scores.occasion_suitability.score === null ? null : Math.round(result.scores.occasion_suitability.score * 10) } });
   await db.update(outfits).set({ analysisStatus: "completed", errorCode: null }).where(eq(outfits.id, outfitId));
 }
 

@@ -82,3 +82,11 @@
 - [x] Test the mobile upload → analysis → result flow, concise output bounds, visibility handling, consistency, and production build; 29 tests, TypeScript, production build, and narrow mobile shell render passed. A fresh live AI mobile upload comparison remains provider/browser dependent.
 - [x] Ensure image quality never directly lowers or zeroes outfit quality when visible clothing categories can still be evaluated; keep it separate from confidence.
 - [x] Correct the mobile-flow validation record to distinguish shell/render and automated coverage from a live mobile upload-to-result run that is not available in this environment.
+
+- [x] Connect selected occasion to the AI request, occasion-specific clothing rubric, weighted final score, concise occasion-aware feedback, result label, persistence/cache identity, and occasion-matrix validation without changing unrelated app functionality.
+- [x] Add regression coverage for occasion criteria coverage, occasion-suitability influence on overall score, and different-occasion cache separation.
+- [x] Add a restrained responsive style for the occasion context label on the result screen.
+- [x] Add a focused regression test proving occasion_suitability changes overall_score while all other category scores remain fixed.
+- [x] Run and document deterministic occasion-matrix validation for at least two selected occasions on the same outfit-shaped fixture.
+- [x] Record evidence that exact-image reuse is separated by occasion in both cache-key tests and persisted lookup behavior.
+- [x] Add direct same-fixture Casual-versus-Formal occasion-matrix regression coverage with distinct occasion-aware outputs and document the observed difference.

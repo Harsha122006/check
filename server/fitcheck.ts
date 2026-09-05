@@ -3,8 +3,23 @@ import { ENV } from "./_core/env";
 import { invokeLLM } from "./_core/llm";
 
 const MAX_IMAGE_DATA_LENGTH = 750_000;
-const CATEGORY_KEYS = ["outfit", "color", "fit", "shoes", "styling"] as const;
+const CATEGORY_KEYS = ["outfit", "color", "fit", "shoes", "styling", "occasion_suitability"] as const;
 type CategoryKey = (typeof CATEGORY_KEYS)[number];
+
+export const OCCASION_CRITERIA = {
+  Casual: "relaxed styling, everyday versatility, color coordination, comfortable-looking combinations, casual silhouette, and practical footwear/accessories",
+  Formal: "polished appearance, appropriate formality, clean silhouette, shirt/trouser/blazer coordination, appropriate footwear, restrained colors, and professional styling",
+  College: "youthful everyday styling, practical casual or semi-casual appearance, color coordination, modern styling, footwear, and campus suitability",
+  Party: "statement styling, visual impact, coordinated colors, elevated pieces, accessories, and party appropriateness",
+  Date: "polished casual or elevated styling, coordinated colors, intentional effort, and a date-appropriate clothing level",
+  Streetwear: "streetwear proportion, layering, statement pieces, sneaker coordination, and intentional urban styling",
+  Other: "coherent clothing choices for the selected context without assuming a formal dress code",
+} as const;
+type Occasion = keyof typeof OCCASION_CRITERIA;
+
+function normalizeOccasion(value?: string): Occasion {
+  return value && value in OCCASION_CRITERIA ? value as Occasion : "Casual";
+}
 
 export type FitCheckErrorCode =
   | "IMAGE_PROBLEM"
@@ -30,12 +45,13 @@ const categoryResultSchema = z.object({
 });
 
 export const fitCheckResultSchema = z.object({
+  occasion: z.string().max(32).optional(),
   overall_score: z.number().min(0).max(10),
   confidence: z.number().min(0).max(1),
   image_quality: z.enum(["good", "usable", "insufficient"]),
   coverage: z.object({
-    visible_categories: z.array(z.enum(CATEGORY_KEYS)).max(5),
-    unavailable_categories: z.array(z.enum(CATEGORY_KEYS)).max(5),
+    visible_categories: z.array(z.enum(CATEGORY_KEYS)).max(6),
+    unavailable_categories: z.array(z.enum(CATEGORY_KEYS)).max(6),
   }),
   scores: z.object({
     outfit: categoryResultSchema,
@@ -43,6 +59,7 @@ export const fitCheckResultSchema = z.object({
     fit: categoryResultSchema,
     shoes: categoryResultSchema,
     styling: categoryResultSchema,
+    occasion_suitability: categoryResultSchema,
   }),
   verdict: z.string().min(1).max(80),
   strengths: z.array(z.string().min(1).max(140)).max(3),
@@ -70,7 +87,8 @@ const categoryResponseSchema = {
 const fitCheckResponseSchema = {
   type: "object",
   properties: {
-    overall_score: { type: "number", description: "Dynamic weighted score from 0 to 10 using only categories with visibility visible. Use 0 only when image_quality is insufficient." },
+    occasion: { type: "string", description: "The selected occasion context." },
+    overall_score: { type: "number", description: "Dynamic weighted score from 0 to 10 using visible clothing categories; the server recalculates it." },
     confidence: { type: "number", description: "Confidence from 0 to 1. Lower it for crop, blur, obstruction, poor lighting, or missing details, but do not fail a usable partial image." },
     image_quality: { type: "string", enum: ["good", "usable", "insufficient"] },
     coverage: {
@@ -89,6 +107,7 @@ const fitCheckResponseSchema = {
         fit: categoryResponseSchema,
         shoes: categoryResponseSchema,
         styling: categoryResponseSchema,
+        occasion_suitability: categoryResponseSchema,
       },
       required: [...CATEGORY_KEYS],
     },
@@ -97,7 +116,7 @@ const fitCheckResponseSchema = {
     improvements: { type: "array", items: { type: "string", maxLength: 180 }, maxItems: 1, description: "One actionable clothing-only change, 5–12 words when possible." },
     summary: { type: "string", maxLength: 220, description: "One short clothing-only sentence; do not write an essay." },
   },
-  required: ["overall_score", "confidence", "image_quality", "coverage", "scores", "verdict", "strengths", "improvements", "summary"],
+  required: ["occasion", "overall_score", "confidence", "image_quality", "coverage", "scores", "verdict", "strengths", "improvements", "summary"],
 };
 
 const systemInstruction = `You are Fit Check, a consistent professional clothing-rating engine. Evaluate the outfit as a combination of garments, never the person wearing it.
@@ -106,15 +125,15 @@ Ignore face, hair, skin, body shape or size, height, physique, pose, expression,
 
 First identify only clothing visibility: outfit cohesion, color coordination, fit/silhouette, shoes, and styling/presentation. Never invent hidden garments, brands, colors, materials, logos, patterns, proportions, or fit. If a clothing area is cropped, covered, or impossible to judge, use score null and visibility not_visible or unclear. Missing clothing is not a bad score and must not lower the score. Confidence describes available clothing evidence only; outfit quality and confidence are separate.
 
-Score each visible category against the fixed 0–10 rubric: 0–2 extremely poor, 3–4 weak, 5 average, 6 decent, 7 good, 8 very good, 9 excellent, 10 exceptional. Use the full range honestly and keep the wording aligned with the score. The server derives overall_score mathematically from visible categories using fixed weights: outfit cohesion 30%, color 20%, fit/silhouette 20%, shoes 15%, styling/presentation 15%, renormalized only across visible categories. Return a neutral overall_score placeholder; do not calculate or invent it.
+Score each visible category against the fixed 0–10 rubric: 0–2 extremely poor, 3–4 weak, 5 average, 6 decent, 7 good, 8 very good, 9 excellent, 10 exceptional. Use the full range honestly and keep the wording aligned with the score. The server derives overall_score mathematically from visible clothing categories using fixed weights: fit 20%, color 20%, style 15%, cohesion 15%, footwear 5%, and occasion_suitability 25%, renormalized only across visible categories. Return a neutral overall_score placeholder; do not calculate or invent it.
 
-Return JSON only. Keep every reason under 120 characters, verdict under 6 words, strengths and improvements to one short clothing-only sentence each, and summary to one short clothing-only sentence. The single improvement must be the highest-impact actionable garment or styling change, or say the current clothing combination is already working. Never mention the person, their body, face, lighting, background, image quality, or photography.`;
+Return JSON only. Set occasion to the selected occasion. Keep every reason under 120 characters, verdict under 6 words, strengths and improvements to one short clothing-only sentence each, and summary to one short clothing-only sentence. The single improvement must be the highest-impact actionable clothing change for the selected occasion, or say the current combination is already working. Never mention the person, their body, face, lighting, background, image quality, or photography.`;
 
 function clampScore(value: number) {
   return Math.max(0, Math.min(10, Number(value.toFixed(1))));
 }
 
-function normalizeCategory(category: FitCheckResult["scores"][CategoryKey]) {
+function normalizeCategory(category: NonNullable<FitCheckResult["scores"][CategoryKey]>) {
   if (category.visibility !== "visible" || category.score === null) return { ...category, score: null };
   return { ...category, score: clampScore(category.score) };
 }
@@ -126,8 +145,9 @@ export function normalizeResult(raw: FitCheckResult): FitCheckResult {
     fit: normalizeCategory(raw.scores.fit),
     shoes: normalizeCategory(raw.scores.shoes),
     styling: normalizeCategory(raw.scores.styling),
+    occasion_suitability: normalizeCategory(raw.scores.occasion_suitability ?? { score: null, visibility: "not_visible", reason: "No occasion context was stored for this older result." }),
   };
-  const weights: Record<CategoryKey, number> = { outfit: 0.3, color: 0.2, fit: 0.2, shoes: 0.15, styling: 0.15 };
+  const weights: Record<CategoryKey, number> = { outfit: 0.15, color: 0.2, fit: 0.2, shoes: 0.05, styling: 0.15, occasion_suitability: 0.25 };
   const visibleCategories = CATEGORY_KEYS.filter((key) => scores[key].visibility === "visible" && scores[key].score !== null);
   const weightTotal = visibleCategories.reduce((total, key) => total + weights[key], 0);
   const weighted = weightTotal === 0 ? 0 : visibleCategories.reduce((total, key) => total + (scores[key].score ?? 0) * weights[key], 0) / weightTotal;
@@ -139,6 +159,7 @@ export function normalizeResult(raw: FitCheckResult): FitCheckResult {
     image_quality: raw.image_quality,
     coverage: { visible_categories: visibleCategories, unavailable_categories: unavailableCategories },
     scores,
+    occasion: raw.occasion,
     verdict: unusable ? "Can’t judge this fit reliably." : raw.verdict.trim(),
     strengths: raw.strengths.slice(0, 3).map((item) => item.trim()),
     improvements: unusable ? ["Try a brighter photo with more of the outfit visible."] : raw.improvements.slice(0, 3).map((item) => item.trim()),
@@ -269,7 +290,8 @@ export async function analyzeFitWithGemini({ imageDataUrl, category, signal }: {
   logDiagnostic("analysis_start", diagnostic);
 
   if (!ENV.forgeApiKey) throw new FitCheckError("INVALID_API_KEY", "AI service configuration error.");
-  const categoryHint = category ? `The user optionally tagged this look as: ${category}. Use it only as context, not as proof.` : "No outfit category was provided.";
+  const occasion = normalizeOccasion(category);
+  const occasionHint = `Selected occasion: ${occasion}. Evaluate clothing suitability for this context using these criteria: ${OCCASION_CRITERIA[occasion]}. The occasion must affect the occasion_suitability score and overall score only when the visible clothing genuinely fits the context. Different fashion is not automatically inappropriate.`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ENV.geminiTimeoutMs);
   const onExternalAbort = () => controller.abort();
@@ -289,7 +311,7 @@ export async function analyzeFitWithGemini({ imageDataUrl, category, signal }: {
           { role: "system", content: systemInstruction },
           { role: "user", content: [
             { type: "image_url", image_url: { url: `data:${mimeType};base64,${data}`, detail: "high" } },
-            { type: "text", text: `${categoryHint}\nAnalyze this outfit for Fit Check in one pass. Return only the requested structured JSON.` },
+            { type: "text", text: `${occasionHint}\nAnalyze this outfit for Fit Check in one pass. Return only the requested structured JSON, set occasion to ${occasion}, and keep strengths and improvements occasion-aware.` },
           ] },
         ],
         responseFormat: { type: "json_schema", json_schema: { name: "fit_check_result", strict: true, schema: fitCheckResponseSchema as Record<string, unknown> } },

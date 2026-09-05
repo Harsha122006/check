@@ -48,8 +48,9 @@ type FitCheckCategory = {
 };
 
 type FitCheckResult = {
+  occasion?: string;
   overall_score: number;
-  scores: { outfit: FitCheckCategory; color: FitCheckCategory; fit: FitCheckCategory; shoes: FitCheckCategory; styling: FitCheckCategory };
+  scores: { outfit: FitCheckCategory; color: FitCheckCategory; fit: FitCheckCategory; shoes: FitCheckCategory; styling: FitCheckCategory; occasion_suitability: FitCheckCategory };
   verdict: string;
   strengths: string[];
   improvements: string[];
@@ -97,6 +98,7 @@ type PersistedHistoryRow = {
     fitScore: number | null;
     shoesScore: number | null;
     stylingScore: number | null;
+    occasionSuitabilityScore: number | null;
     verdict: string;
     summary: string;
     confidence: number;
@@ -115,6 +117,7 @@ function persistedRowToResult(row: PersistedHistoryRow): FitCheckResult | null {
     reason: unavailable.includes(key) ? "Not visible in this frame." : "Evaluated from the visible frame.",
   });
   return {
+    occasion: row.outfit.category ?? "Casual",
     overall_score: row.analysis.overallScore / 10,
     scores: {
       outfit: category(row.analysis.outfitScore, "outfit"),
@@ -122,6 +125,7 @@ function persistedRowToResult(row: PersistedHistoryRow): FitCheckResult | null {
       fit: category(row.analysis.fitScore, "fit"),
       shoes: category(row.analysis.shoesScore, "shoes"),
       styling: category(row.analysis.stylingScore, "styling"),
+      occasion_suitability: category(row.analysis.occasionSuitabilityScore, "occasion_suitability"),
     },
     verdict: row.analysis.verdict,
     summary: row.analysis.summary,
@@ -403,7 +407,7 @@ function PreviewView({
             <div className="category-picker">
               <span className="category-label">What kind of fit is this? <small>Optional</small></span>
               <div className="category-chips">
-                {["Casual", "Streetwear", "College", "Formal", "Party", "Other"].map((option) => (
+                {["Casual", "Streetwear", "College", "Formal", "Party", "Date", "Other"].map((option) => (
                   <button key={option} className={category === option ? "category-chip is-selected" : "category-chip"} onClick={() => setCategory(category === option ? "" : option)}>{option}</button>
                 ))}
               </div>
@@ -698,8 +702,8 @@ export default function Home() {
       const uploadDuration = performance.now() - uploadStartedAt;
       const geminiStartedAt = performance.now();
       const result = user
-        ? (await analyzeAndPersist.mutateAsync({ imageDataUrl, category: category || undefined, requestId: crypto.randomUUID(), originalName: fileName })).result
-        : await analyzeFit.mutateAsync({ imageDataUrl, category: category || undefined });
+        ? (await analyzeAndPersist.mutateAsync({ imageDataUrl, category: category || undefined, occasion: category || undefined, requestId: crypto.randomUUID(), originalName: fileName })).result
+        : await analyzeFit.mutateAsync({ imageDataUrl, category: category || undefined, occasion: category || undefined });
       const geminiDuration = performance.now() - geminiStartedAt;
       const totalDuration = performance.now() - totalStartedAt;
       if (import.meta.env.DEV) {
@@ -873,13 +877,13 @@ function PremiumResultsView({
   onShare: () => void;
   onAgain: () => void;
 }) {
-  const fallback: FitCheckResult = { overall_score: 8.7, scores: { outfit: { score: 9.0, visibility: "visible", reason: "Visible outfit cohesion." }, color: { score: 8.5, visibility: "visible", reason: "Visible color coordination." }, fit: { score: 8.2, visibility: "visible", reason: "Visible silhouette." }, shoes: { score: 8.8, visibility: "visible", reason: "Footwear is visible." }, styling: { score: 9.0, visibility: "visible", reason: "Visible styling choices." } }, verdict: "Looking clean.", strengths: ["Strong color coordination"], improvements: ["Try a cleaner sneaker"], summary: "The outfit has a strong casual direction with good color balance.", confidence: 0.86, image_quality: "good", coverage: { visible_categories: ["outfit", "color", "fit", "shoes", "styling"], unavailable_categories: [] } };
+  const fallback: FitCheckResult = { occasion: "Casual", overall_score: 8.7, scores: { outfit: { score: 9.0, visibility: "visible", reason: "Visible outfit cohesion." }, color: { score: 8.5, visibility: "visible", reason: "Visible color coordination." }, fit: { score: 8.2, visibility: "visible", reason: "Visible silhouette." }, shoes: { score: 8.8, visibility: "visible", reason: "Footwear is visible." }, styling: { score: 9.0, visibility: "visible", reason: "Visible styling choices." }, occasion_suitability: { score: 8.7, visibility: "visible", reason: "Suitable for the selected occasion." } }, verdict: "Looking clean.", strengths: ["Strong color coordination"], improvements: ["Try a cleaner sneaker"], summary: "The outfit has a strong casual direction with good color balance.", confidence: 0.86, image_quality: "good", coverage: { visible_categories: ["outfit", "color", "fit", "shoes", "styling"], unavailable_categories: [] } };
   const live = result ?? fallback;
   const breakdown = [
     { label: "Fit", category: live.scores.fit },
     { label: "Colors", category: live.scores.color },
     { label: "Style", category: live.scores.styling },
-    { label: "Cohesion", category: live.scores.outfit },
+    { label: "Occasion", category: live.scores.occasion_suitability },
   ];
   const working = conciseLine(live.strengths[0], "Clean clothing choices with a clear direction.");
   const change = conciseLine(live.improvements[0], "Try one cleaner clothing adjustment.");
@@ -896,6 +900,7 @@ function PremiumResultsView({
         <div className="minimal-score-content">
           <span className="mono score-kicker">FIT SCORE</span>
           <AnimatedScore score={live.overall_score} />
+          <span className="occasion-edit-label">{(live.occasion ?? "Casual").toUpperCase()} EDIT</span>
           <h1 className="minimal-score-verdict">{live.verdict}</h1>
           {live.coverage.unavailable_categories.length > 0 && <p className="coverage-note">Some clothing is outside the frame.</p>}
         </div>
