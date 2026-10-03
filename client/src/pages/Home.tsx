@@ -3,7 +3,7 @@
  * Use cool paper, ink, mono edge codes, crop marks, and grease-pencil red sparingly.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DragEvent, RefObject } from "react";
+import type { DragEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ArrowLeft,
@@ -343,13 +343,9 @@ function PreviewView({
   dragActive,
   onChoose,
   onCameraChoose,
-  onFile,
-  onCameraFile,
   onDrop,
   onDevelop,
   onRetake,
-  inputRef,
-  cameraInputRef,
   setDragActive,
   category,
   setCategory,
@@ -360,13 +356,9 @@ function PreviewView({
   dragActive: boolean;
   onChoose: () => void;
   onCameraChoose: () => void;
-  onFile: (file: File) => void;
-  onCameraFile: (file: File) => void;
   onDrop: (event: DragEvent<HTMLDivElement>) => void;
   onDevelop: () => void;
   onRetake: () => void;
-  inputRef: RefObject<HTMLInputElement | null>;
-  cameraInputRef: RefObject<HTMLInputElement | null>;
   setDragActive: (value: boolean) => void;
   category: string;
   setCategory: (value: string) => void;
@@ -430,14 +422,6 @@ function PreviewView({
         )}
       </div>
 
-      <input ref={inputRef} type="file" accept="image/*" hidden onChange={(event) => {
-        const file = event.target.files?.[0];
-        if (file) onFile(file);
-      }} />
-      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => {
-        const file = event.target.files?.[0];
-        if (file) onCameraFile(file);
-      }} />
     </section>
   );
 }
@@ -655,13 +639,14 @@ export default function Home() {
     }
     if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(file));
-    setSelectedFile(file);
-    setFileName(file.name.toUpperCase());
-    setSaved(false);
-    setLiveResult(null);
-    setStage("preview");
-    triggerHaptic("light");
-  };
+        setSelectedFile(file);
+        setFileName(file.name.toUpperCase());
+        setSaved(false);
+        setLiveResult(null);
+        setAnalysisError(null);
+        setStage("preview");
+        triggerHaptic("light");
+      };
 
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -749,7 +734,8 @@ export default function Home() {
   const share = async () => {
     const text = `My fit scored ${liveResult?.overall_score.toFixed(1) ?? "—"} on FitCheck — ${liveResult?.verdict ?? "my latest fit"}.`;
     try {
-      await navigator.clipboard?.writeText(text);
+      if (!navigator.clipboard?.writeText) throw new Error("CLIPBOARD_UNAVAILABLE");
+      await navigator.clipboard.writeText(text);
       toast("Share note copied.", { description: "The share card flow is ready for your next post." });
     } catch {
       toast("Share card ready.", { description: "Copy your score and vibe tag to share it." });
@@ -772,12 +758,22 @@ export default function Home() {
 
       <main>
         <AnimatePresence mode="wait" initial={false}>
-          {stage === "home" && <motion.div key="home" initial={{ opacity: 0, y: 8, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.998 }} transition={{ duration: 0.32, ease: [0.23, 1, 0.32, 1] }}><HomeView recentItems={visibleHistory} onDevelop={() => setStage("preview")} onSample={useSample} onHistory={() => { setSelectedHistoryId(null); setStage("history"); }} onGallery={() => { setStage("preview"); window.setTimeout(() => inputRef.current?.click(), 0); }} onCamera={() => { setStage("preview"); window.setTimeout(() => cameraInputRef.current?.click(), 0); }} /></motion.div>}
-          {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 14, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.998 }} transition={{ duration: 0.34, ease: [0.23, 1, 0.32, 1] }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onCameraChoose={() => cameraInputRef.current?.click()} onFile={chooseFile} onCameraFile={chooseFile} onDrop={handleDrop} onDevelop={submitForAnalysis} onRetake={() => { setPreviewUrl(null); setFileName("frame_014.jpg"); setCategory(""); }} inputRef={inputRef} cameraInputRef={cameraInputRef} setDragActive={setDragActive} category={category} setCategory={setCategory} analysisError={analysisError} /></motion.div>}
+          {stage === "home" && <motion.div key="home" initial={{ opacity: 0, y: 8, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.998 }} transition={{ duration: 0.32, ease: [0.23, 1, 0.32, 1] }}><HomeView recentItems={visibleHistory} onDevelop={() => setStage("preview")} onSample={useSample} onHistory={() => { setSelectedHistoryId(null); setStage("history"); }} onGallery={() => { inputRef.current?.click(); setStage("preview"); }} onCamera={() => { cameraInputRef.current?.click(); setStage("preview"); }} /></motion.div>}
+          {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 14, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.998 }} transition={{ duration: 0.34, ease: [0.23, 1, 0.32, 1] }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onCameraChoose={() => cameraInputRef.current?.click()} onDrop={handleDrop} onDevelop={submitForAnalysis} onRetake={() => { setPreviewUrl(null); setSelectedFile(null); setFileName("frame_014.jpg"); setCategory(""); setAnalysisError(null); }} setDragActive={setDragActive} category={category} setCategory={setCategory} analysisError={analysisError} /></motion.div>}
           {stage === "analyzing" && <motion.div key="analyzing" initial={{ opacity: 0, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.002 }} transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}><AnalyzingView photo={photo} messageIndex={analysisIndex} /></motion.div>}
           {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 18, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.42, ease: [0.23, 1, 0.32, 1] }}><PremiumResultsView photo={photo} result={liveResult} saved={saved} onSave={handleSave} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
           {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 14, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.34, ease: [0.23, 1, 0.32, 1] }}><HistoryView items={visibleHistory} onBack={startOver} onDevelop={() => setStage("preview")} onDelete={handleDelete} onSelect={(id) => { if (!user) { toast("Sign in to open saved fits.", { description: "Your archive is private to your account." }); return; } setSelectedHistoryId(Number.parseInt(id, 10)); }} /></motion.div>}
         </AnimatePresence>
+        <input ref={inputRef} type="file" accept="image/*" hidden onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) chooseFile(file);
+        }} />
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) chooseFile(file);
+        }} />
       </main>
 
     </div>

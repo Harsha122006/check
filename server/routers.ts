@@ -123,10 +123,18 @@ export const appRouter = router({
       if (cached?.analysis) {
         return { outfitId: cached.outfit.id, imageUrl: cached.outfit.imageUrl, result: cachedAnalysisToResult(cached), cached: true as const };
       }
-      const storage = await storagePut(`outfits/${ctx.user.id}/${input.requestId}/original`, bytes, mimeType);
+      // Storage and Gemini do not depend on each other's result. Start both
+      // requests together; the outfit row still waits for storage so it can
+      // retain the same managed image reference and processing semantics.
+      const storagePromise = storagePut(`outfits/${ctx.user.id}/${input.requestId}/original`, bytes, mimeType);
+      const analysisPromise = analyzeWithAbort(ctx, { ...input, category: occasion, occasion });
+      // If storage fails before we reach the analysis try/catch, consume a
+      // possible analysis rejection while preserving the existing error path.
+      void analysisPromise.catch(() => undefined);
+      const storage = await storagePromise;
       const outfit = await createOutfitRecord({ userId: ctx.user.id, requestId: input.requestId, imageKey: storage.key, imageUrl: storage.url, imageFingerprint, originalName: input.originalName, category: occasion });
       try {
-        const result = await analyzeWithAbort(ctx, { ...input, category: occasion, occasion });
+        const result = await analysisPromise;
         await completeOutfitRecord(outfit.id, result);
         return { outfitId: outfit.id, imageUrl: storage.url, result };
       } catch (error) {

@@ -9,5 +9,7 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   geminiApiKey: process.env.GEMINI_API_KEY ?? "",
   geminiModel: process.env.GEMINI_MODEL ?? "gemini-3-flash-preview",
-  geminiTimeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 15_000),
+  // The provider commonly completes valid structured outfit reads in 9–13s.
+  // Keep the timeout bounded, but leave enough headroom for normal variance.
+  geminiTimeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 25_000),
 };
