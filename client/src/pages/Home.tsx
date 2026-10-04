@@ -17,12 +17,15 @@ import {
   FileImage,
   FolderOpen,
   History as HistoryIcon,
+  Heart,
   ImagePlus,
   MoreHorizontal,
+  Pin,
   RefreshCw,
   ScanLine,
   Share2,
   Sparkles,
+  Trash2,
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -31,6 +34,7 @@ import { startLogin } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { isCurrentAnalysisRequest, shouldStartAnalysis } from "@/lib/analysisGuards";
 import { triggerHaptic } from "@/lib/haptics";
+import { getArchiveMeta, toggleArchiveMeta, type ArchiveMetaMap } from "@/lib/archiveMeta";
 
 type Stage = "home" | "preview" | "analyzing" | "results" | "history";
 
@@ -73,7 +77,7 @@ const categories: Category[] = [
   { label: "Trend awareness", key: "SIGNAL / 05", score: 8.7, note: "quietly current" },
 ];
 
-type HistoryItem = { id: string; date: string; score: string; vibe: string; image: string };
+type HistoryItem = { id: string; date: string; score: string; vibe: string; image: string; pinned?: boolean; favorite?: boolean };
 
 const demoHistoryItems: HistoryItem[] = [
   { id: "014", date: "AUG 26", score: "8.7", vibe: "clean utility", image: HERO_IMAGE },
@@ -537,9 +541,19 @@ function ResultsView({
   );
 }
 
-function HistoryView({ onBack, onDevelop, onDelete, onSelect, items }: { onBack: () => void; onDevelop: () => void; onDelete: (id: string) => void; onSelect: (id: string) => void; items: HistoryItem[] }) {
+function HistoryView({ onBack, onDevelop, onDelete, onSelect, onTogglePin, onToggleFavorite, items }: { onBack: () => void; onDevelop: () => void; onDelete: (id: string) => void; onSelect: (id: string) => void; onTogglePin: (id: string) => void; onToggleFavorite: (id: string) => void; items: HistoryItem[] }) {
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const orderedItems = [...items].sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)));
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpenMenuId(null); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [openMenuId]);
+
   return (
-    <section className="history-view">
+    <section className="history-view" onClick={() => setOpenMenuId(null)}>
       <div className="history-heading">
         <div>
           <button className="back-button" onClick={onBack}><ArrowLeft size={15} /> Back to workbench</button>
@@ -569,10 +583,10 @@ function HistoryView({ onBack, onDevelop, onDelete, onSelect, items }: { onBack:
 
       <div className="history-toolbar"><span className="mono">RECENTLY DEVELOPED</span><button className="text-button" onClick={onDevelop}><span className="button-under">Develop a new fit</span><ArrowUpRight size={15} /></button></div>
       <div className="history-grid">
-        {items.length === 0 ? <p className="history-empty">No saved fits yet. Check a new fit to start your archive.</p> : items.map((item, index) => (
-          <motion.article className="history-frame" key={item.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08, type: "spring", stiffness: 130, damping: 18 }} onClick={() => onSelect(item.id)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(item.id); }}>
-            <div className="history-image-wrap"><img src={item.image} alt={`${item.vibe} outfit frame`} /><span className="history-score">{item.score}</span><span className="history-frame-number mono">FC / {item.id}</span></div>
-            <div className="history-frame-meta"><div><span className="mono">{item.date} · FRAME {item.id}</span><h3>{item.vibe}</h3></div><button className="more-button" aria-label={`Delete frame ${item.id}`} onClick={(event) => { event.stopPropagation(); onDelete(item.id); }}><MoreHorizontal size={17} /></button></div>
+        {orderedItems.length === 0 ? <p className="history-empty">No saved fits yet. Check a new fit to start your archive.</p> : orderedItems.map((item, index) => (
+          <motion.article className={`history-frame ${item.pinned ? "is-pinned" : ""}`} key={item.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08, type: "spring", stiffness: 130, damping: 18 }} onClick={() => onSelect(item.id)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onSelect(item.id); }}>
+            <div className="history-image-wrap"><img src={item.image} alt={`${item.vibe} outfit frame`} /><span className="history-score">{item.score}</span><span className="history-frame-number mono">FC / {item.id}</span>{item.pinned && <span className="history-pin-badge" title="Pinned"><Pin size={12} /></span>}</div>
+            <div className="history-frame-meta"><div><span className="mono">{item.date} · FRAME {item.id}</span><h3>{item.vibe}</h3><div className="history-statuses">{item.favorite && <span><Heart size={12} fill="currentColor" /> Favourite</span>}{item.pinned && <span><Pin size={12} /> Pinned</span>}</div></div><div className="history-menu-wrap"><button className={`more-button ${openMenuId === item.id ? "is-open" : ""}`} aria-label={`More actions for frame ${item.id}`} aria-expanded={openMenuId === item.id} onClick={(event) => { event.stopPropagation(); setOpenMenuId(openMenuId === item.id ? null : item.id); }}><MoreHorizontal size={17} /></button>{openMenuId === item.id && <div className="history-action-menu" role="menu" onClick={(event) => event.stopPropagation()}><button role="menuitem" onClick={() => { onTogglePin(item.id); setOpenMenuId(null); }}><Pin size={15} /> {item.pinned ? "Unpin fit" : "Pin fit"}<span className="menu-shortcut">{item.pinned ? "" : "Keep up top"}</span></button><button role="menuitem" onClick={() => { onToggleFavorite(item.id); setOpenMenuId(null); }}><Heart size={15} fill={item.favorite ? "currentColor" : "none"} /> {item.favorite ? "Remove favourite" : "Add to favourites"}<span className="menu-shortcut">{item.favorite ? "" : "Like this fit"}</span></button><div className="menu-divider" /><button className="menu-danger" role="menuitem" onClick={() => { setOpenMenuId(null); onDelete(item.id); }}><span><Trash2 size={15} /> Delete fit</span></button></div>}</div></div>
           </motion.article>
         ))}
       </div>
@@ -592,6 +606,10 @@ export default function Home() {
   const [category, setCategory] = useState("");
   const [liveResult, setLiveResult] = useState<FitCheckResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [archiveMeta, setArchiveMeta] = useState<ArchiveMetaMap>(() => {
+    if (typeof window === "undefined") return {};
+    try { return JSON.parse(window.localStorage.getItem("fitcheck-archive-meta") ?? "{}"); } catch { return {}; }
+  });
   const { user } = useAuth();
   const analyzeFit = trpc.fitCheck.analyze.useMutation();
   const analyzeAndPersist = trpc.fitCheck.analyzeAndPersist.useMutation();
@@ -602,7 +620,7 @@ export default function Home() {
   const selectedHistoryInput = useMemo(() => ({ outfitId: selectedHistoryId ?? 0 }), [selectedHistoryId]);
   const selectedHistoryQuery = trpc.fitCheck.get.useQuery(selectedHistoryInput, { enabled: Boolean(user && selectedHistoryId), retry: false });
   const persistedHistory = mapPersistedHistory((historyQuery.data ?? []) as PersistedHistoryRow[]);
-  const visibleHistory = user ? persistedHistory : demoHistoryItems;
+  const visibleHistory = (user ? persistedHistory : demoHistoryItems).map((item) => ({ ...item, ...getArchiveMeta(archiveMeta, item.id) }));
   const analysisRequestRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -722,6 +740,17 @@ export default function Home() {
     }
   };
 
+  const updateArchiveMeta = (id: string, field: "pinned" | "favorite") => {
+    setArchiveMeta((current) => {
+      const next = toggleArchiveMeta(current, id, field);
+      window.localStorage.setItem("fitcheck-archive-meta", JSON.stringify(next));
+      return next;
+    });
+    triggerHaptic("light");
+    const current = getArchiveMeta(archiveMeta, id);
+    toast(field === "pinned" ? (current.pinned ? "Fit unpinned." : "Fit pinned to your archive.") : (current.favorite ? "Removed from favourites." : "Added to favourites."));
+  };
+
   const handleSave = () => {
     if (!user) {
       toast("Sign in to save this fit.", { description: "Your archive is private to your account." });
@@ -762,7 +791,7 @@ export default function Home() {
           {stage === "preview" && <motion.div key="preview" initial={{ opacity: 0, y: 14, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.998 }} transition={{ duration: 0.34, ease: [0.23, 1, 0.32, 1] }}><PreviewView photo={previewUrl} fileName={fileName} dragActive={dragActive} onChoose={() => inputRef.current?.click()} onCameraChoose={() => cameraInputRef.current?.click()} onDrop={handleDrop} onDevelop={submitForAnalysis} onRetake={() => { setPreviewUrl(null); setSelectedFile(null); setFileName("frame_014.jpg"); setCategory(""); setAnalysisError(null); }} setDragActive={setDragActive} category={category} setCategory={setCategory} analysisError={analysisError} /></motion.div>}
           {stage === "analyzing" && <motion.div key="analyzing" initial={{ opacity: 0, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.002 }} transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}><AnalyzingView photo={photo} messageIndex={analysisIndex} /></motion.div>}
           {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 18, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.42, ease: [0.23, 1, 0.32, 1] }}><PremiumResultsView photo={photo} result={liveResult} saved={saved} onSave={handleSave} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
-          {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 14, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.34, ease: [0.23, 1, 0.32, 1] }}><HistoryView items={visibleHistory} onBack={startOver} onDevelop={() => setStage("preview")} onDelete={handleDelete} onSelect={(id) => { if (!user) { toast("Sign in to open saved fits.", { description: "Your archive is private to your account." }); return; } setSelectedHistoryId(Number.parseInt(id, 10)); }} /></motion.div>}
+          {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 14, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.34, ease: [0.23, 1, 0.32, 1] }}><HistoryView items={visibleHistory} onBack={startOver} onDevelop={() => setStage("preview")} onDelete={handleDelete} onTogglePin={(id) => updateArchiveMeta(id, "pinned")} onToggleFavorite={(id) => updateArchiveMeta(id, "favorite")} onSelect={(id) => { if (!user) { toast("Sign in to open saved fits.", { description: "Your archive is private to your account." }); return; } setSelectedHistoryId(Number.parseInt(id, 10)); }} /></motion.div>}
         </AnimatePresence>
         <input ref={inputRef} type="file" accept="image/*" hidden onChange={(event) => {
           const file = event.currentTarget.files?.[0];
