@@ -504,5 +504,22 @@ body { font-family: var(--body); font-size: 15px; }
 @media (prefers-reduced-motion: reduce) { .minimal-score-orbit { animation: none; }
 }
 
+.share-modal-backdrop { position:fixed; inset:0; z-index:80; display:grid; place-items:center; padding:20px; background:rgba(24,35,42,.5); backdrop-filter:blur(10px); animation:share-fade .18s ease both; }
+.share-modal { width:min(100%, 430px); max-height:min(92svh, 900px); overflow:auto; padding:20px; border:1px solid rgba(255,255,255,.6); border-radius:24px; background:#FFFDFC; box-shadow:0 28px 70px rgba(24,35,42,.25); animation:share-rise .24s cubic-bezier(.23,1,.32,1) both; }
+.share-modal-header { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; margin-bottom:16px; }
+.share-modal-header .mono { color:#4868FF; font-size:10px; letter-spacing:.14em; }
+.share-modal-header h2 { margin:7px 0 4px; font-family:var(--display); font-size:32px; font-weight:400; letter-spacing:-.045em; }
+.share-modal-header p { margin:0; color:var(--muted); font-size:13px; }
+.share-card-preview { position:relative; display:grid; place-items:center; min-height:360px; overflow:hidden; border-radius:18px; background:#EAF5F4; }
+.share-card-preview img { display:block; width:100%; max-height:64svh; object-fit:contain; }
+.share-card-loading { position:absolute; z-index:1; display:flex; align-items:center; gap:8px; color:var(--accent-blue); font-size:13px; }
+.share-card-error { padding:20px; color:#C64D4A; text-align:center; }
+.share-modal-actions { display:grid; grid-template-columns:1.2fr 1fr; gap:10px; margin-top:16px; }
+.share-modal-actions button { min-height:48px; }
+@keyframes share-fade { from { opacity:0; } to { opacity:1; } }
+@keyframes share-rise { from { opacity:0; transform:translateY(12px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+@media (max-width: 520px) { .share-modal-backdrop { align-items:end; padding:10px; } .share-modal { padding:16px; border-radius:22px 22px 18px 18px; } .share-card-preview { min-height:320px; } .share-modal-actions { grid-template-columns:1fr; } }
+@media (prefers-reduced-motion: reduce) { .share-modal-backdrop, .share-modal { animation:none; } }
+
 .occasion-edit-label { color: #6e7b80; font-size: 10px; font-weight: 700; letter-spacing: .16em; }
 @media (max-width: 640px) { .occasion-edit-label { font-size: 9px; letter-spacing: .14em; } }

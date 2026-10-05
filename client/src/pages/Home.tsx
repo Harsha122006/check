@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Clock3,
   Copy,
+  Download,
   FileImage,
   FolderOpen,
   History as HistoryIcon,
@@ -27,6 +28,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -35,6 +37,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { isCurrentAnalysisRequest, shouldStartAnalysis } from "@/lib/analysisGuards";
 import { triggerHaptic } from "@/lib/haptics";
 import { getArchiveMeta, toggleArchiveMeta, type ArchiveMetaMap } from "@/lib/archiveMeta";
+import { createShareCardBlob, formatShareScore } from "@/lib/shareCard";
 
 type Stage = "home" | "preview" | "analyzing" | "results" | "history";
 
@@ -606,6 +609,7 @@ export default function Home() {
   const [category, setCategory] = useState("");
   const [liveResult, setLiveResult] = useState<FitCheckResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [shareCardOpen, setShareCardOpen] = useState(false);
   const [archiveMeta, setArchiveMeta] = useState<ArchiveMetaMap>(() => {
     if (typeof window === "undefined") return {};
     try { return JSON.parse(window.localStorage.getItem("fitcheck-archive-meta") ?? "{}"); } catch { return {}; }
@@ -760,16 +764,7 @@ export default function Home() {
     toast("Fit saved to your archive.");
   };
 
-  const share = async () => {
-    const text = `My fit scored ${liveResult?.overall_score.toFixed(1) ?? "—"} on FitCheck — ${liveResult?.verdict ?? "my latest fit"}.`;
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error("CLIPBOARD_UNAVAILABLE");
-      await navigator.clipboard.writeText(text);
-      toast("Share note copied.", { description: "The share card flow is ready for your next post." });
-    } catch {
-      toast("Share card ready.", { description: "Copy your score and vibe tag to share it." });
-    }
-  };
+  const share = () => setShareCardOpen(true);
 
   return (
     <div className="fitcheck-shell">
@@ -793,6 +788,7 @@ export default function Home() {
           {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 18, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.42, ease: [0.23, 1, 0.32, 1] }}><PremiumResultsView photo={photo} result={liveResult} saved={saved} onSave={handleSave} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
           {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 14, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.34, ease: [0.23, 1, 0.32, 1] }}><HistoryView items={visibleHistory} onBack={startOver} onDevelop={() => setStage("preview")} onDelete={handleDelete} onTogglePin={(id) => updateArchiveMeta(id, "pinned")} onToggleFavorite={(id) => updateArchiveMeta(id, "favorite")} onSelect={(id) => { if (!user) { toast("Sign in to open saved fits.", { description: "Your archive is private to your account." }); return; } setSelectedHistoryId(Number.parseInt(id, 10)); }} /></motion.div>}
         </AnimatePresence>
+        <ShareCardModal open={shareCardOpen} photo={photo} result={liveResult} onClose={() => setShareCardOpen(false)} />
         <input ref={inputRef} type="file" accept="image/*" hidden onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = "";
@@ -887,6 +883,69 @@ function conciseLine(value: string | undefined, fallback: string) {
   return line.length > 96 ? `${line.slice(0, 93).trimEnd()}…` : line;
 }
 
+function ShareCardModal({ open, photo, result, onClose }: { open: boolean; photo: string; result: FitCheckResult | null; onClose: () => void }) {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [blob, setBlob] = useState<Blob | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !result) return;
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+    setBlob(null);
+    setImageUrl(null);
+    createShareCardBlob({ photo, score: result.overall_score, occasion: result.occasion, verdict: conciseLine(result.verdict, "A strong fit with a clear point of view."), takeaway: conciseLine(result.strengths[0] ?? result.summary, "Clean choices with a clear personal direction."), tags: [result.occasion ?? "Casual", result.scores.styling.score && result.scores.styling.score >= 0.8 ? "Well styled" : "Personal style"] })
+      .then((nextBlob) => { if (!active) return; setBlob(nextBlob); setImageUrl(URL.createObjectURL(nextBlob)); })
+      .catch(() => { if (active) setError("This share card could not be prepared. Try again."); })
+      .finally(() => { if (active) setIsLoading(false); });
+    return () => { active = false; };
+  }, [open, photo, result]);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open, onClose]);
+
+  useEffect(() => () => { if (imageUrl) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
+
+  if (!open || !result) return null;
+
+  const saveImage = () => {
+    if (!blob) return;
+    const link = document.createElement("a");
+    link.href = imageUrl ?? URL.createObjectURL(blob);
+    link.download = `fitcheck-${formatShareScore(result.overall_score).replace("/", "-")}.png`;
+    link.click();
+    toast("Share image saved.", { description: "Your FitCheck card is ready to post." });
+  };
+
+  const shareImage = async () => {
+    if (!blob) return;
+    const file = new File([blob], "fitcheck-share.png", { type: "image/png" });
+    try {
+      if (!navigator.share || (navigator.canShare && !navigator.canShare({ files: [file] }))) throw new Error("NATIVE_SHARE_UNAVAILABLE");
+      await navigator.share({ title: "My FitCheck score", text: `My fit scored ${formatShareScore(result.overall_score)} on FitCheck.`, files: [file] });
+    } catch (shareError) {
+      if (shareError instanceof DOMException && shareError.name === "AbortError") return;
+      saveImage();
+    }
+  };
+
+  return (
+    <div className="share-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
+      <section className="share-modal" role="dialog" aria-modal="true" aria-labelledby="share-card-title">
+        <div className="share-modal-header"><div><span className="mono">FITCHECK / SHARE</span><h2 id="share-card-title">Share my fit</h2><p>Preview your story-ready fit card.</p></div><button className="icon-button" onClick={onClose} aria-label="Close share preview"><X size={17} /></button></div>
+        <div className="share-card-preview">{isLoading && <div className="share-card-loading"><Sparkles size={18} /> Preparing your card…</div>}{error && <div className="share-card-loading share-card-error">{error}</div>}{imageUrl && <img src={imageUrl} alt={`FitCheck share card showing a score of ${formatShareScore(result.overall_score)}`} />}</div>
+        <div className="share-modal-actions"><button className="btn btn--red" onClick={shareImage} disabled={!blob}><Share2 size={16} /> Share my fit</button><button className="btn btn--quiet" onClick={saveImage} disabled={!blob}><Download size={16} /> Save image</button></div>
+      </section>
+    </div>
+  );
+}
+
 function PremiumResultsView({
   photo,
   result,
@@ -946,7 +1005,7 @@ function PremiumResultsView({
 
       <div className="premium-result-actions">
         <button className="btn btn--red premium-primary-action" onClick={onAgain}>Try another fit <ArrowUpRight size={17} /></button>
-        <button className="btn btn--quiet premium-share-action" onClick={onShare}><Share2 size={16} /> Share my score</button>
+        <button className="btn btn--quiet premium-share-action" onClick={onShare}><Share2 size={16} /> Share My Fit</button>
         <button className="save-link" onClick={onSave}>{saved ? <Check size={14} /> : <Bookmark size={14} />} {saved ? "Saved" : "Save fit"}</button>
       </div>
     </section>
