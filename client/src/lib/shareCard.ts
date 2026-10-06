@@ -1,6 +1,7 @@
 export type ShareCardInput = {
   photo: string;
   score: number;
+  username?: string;
   occasion?: string;
   verdict: string;
   takeaway: string;
@@ -12,6 +13,10 @@ export const SHARE_CARD_HEIGHT = 1920;
 
 export function formatShareScore(score: number) {
   return `${score.toFixed(1)}/10`;
+}
+
+export function formatShareUsername(name?: string) {
+  return name?.trim().replace(/\s+/g, "").toLowerCase() || "";
 }
 
 export function wrapShareText(value: string, maxChars = 34, maxLines = 3) {
@@ -66,14 +71,15 @@ function buildShareSvg(input: ShareCardInput) {
       <linearGradient id="posterBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#344A5B"/><stop offset=".56" stop-color="#14191F"/><stop offset="1" stop-color="#050608"/></linearGradient>
       <clipPath id="photoClip"><rect x="84" y="116" width="912" height="1120" rx="30"/></clipPath>
       <style>
-        .score{font:700 118px Arial,sans-serif;letter-spacing:-5px;fill:#FFFFFF}.unit{font:700 34px Arial,sans-serif;fill:#FF756D}.brand{font:700 42px Arial,sans-serif;letter-spacing:-1.8px;fill:#FFFFFF}
+        .score{font:700 118px Arial,sans-serif;letter-spacing:-5px;fill:#FFFFFF}.username{font:700 27px Arial,sans-serif;letter-spacing:1.5px;fill:#FF756D}.brand{font:700 42px Arial,sans-serif;letter-spacing:-1.8px;fill:#FFFFFF}
       </style>
     </defs>
     <rect width="1080" height="1920" fill="url(#posterBg)"/>
     <rect x="68" y="100" width="944" height="1152" rx="38" fill="#0B0D10" opacity=".45"/>
     <g clip-path="url(#photoClip)"><image x="84" y="116" width="912" height="1120" preserveAspectRatio="xMidYMid slice" href="${escapeXml(imageHref(input.photo))}" xlink:href="${escapeXml(imageHref(input.photo))}"/></g>
     <text x="540" y="1405" text-anchor="middle" class="score">${escapeXml(formatShareScore(input.score))}</text>
-    <g transform="translate(440 1510)"><rect width="58" height="58" rx="14" fill="#FF756D"/><path d="M18 14h25v8H26v23h-8zM32 27h15v8H32z" fill="#18232A"/><text x="76" y="41" class="brand">FitCheck</text></g>
+    ${input.username ? `<text x="540" y="1480" text-anchor="middle" class="username">@${escapeXml(formatShareUsername(input.username))}</text>` : ""}
+    <g transform="translate(440 ${input.username ? 1550 : 1510})"><rect width="58" height="58" rx="14" fill="#FF756D"/><path d="M18 14h25v8H26v23h-8zM32 27h15v8H32z" fill="#18232A"/><text x="76" y="41" class="brand">FitCheck</text></g>
   </svg>`;
 }
 

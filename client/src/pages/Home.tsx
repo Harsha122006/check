@@ -788,7 +788,7 @@ export default function Home() {
           {stage === "results" && <motion.div key="results" initial={{ opacity: 0, y: 18, scale: 0.992 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.42, ease: [0.23, 1, 0.32, 1] }}><PremiumResultsView photo={photo} result={liveResult} saved={saved} onSave={handleSave} onShare={share} onAgain={() => setStage("preview")} /></motion.div>}
           {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 14, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.34, ease: [0.23, 1, 0.32, 1] }}><HistoryView items={visibleHistory} onBack={startOver} onDevelop={() => setStage("preview")} onDelete={handleDelete} onTogglePin={(id) => updateArchiveMeta(id, "pinned")} onToggleFavorite={(id) => updateArchiveMeta(id, "favorite")} onSelect={(id) => { if (!user) { toast("Sign in to open saved fits.", { description: "Your archive is private to your account." }); return; } setSelectedHistoryId(Number.parseInt(id, 10)); }} /></motion.div>}
         </AnimatePresence>
-        <ShareCardModal open={shareCardOpen} photo={photo} result={liveResult} onClose={() => setShareCardOpen(false)} />
+        <ShareCardModal open={shareCardOpen} photo={photo} result={liveResult} username={user?.name ?? undefined} onClose={() => setShareCardOpen(false)} />
         <input ref={inputRef} type="file" accept="image/*" hidden onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = "";
@@ -883,7 +883,7 @@ function conciseLine(value: string | undefined, fallback: string) {
   return line.length > 96 ? `${line.slice(0, 93).trimEnd()}…` : line;
 }
 
-function ShareCardModal({ open, photo, result, onClose }: { open: boolean; photo: string; result: FitCheckResult | null; onClose: () => void }) {
+function ShareCardModal({ open, photo, result, username, onClose }: { open: boolean; photo: string; result: FitCheckResult | null; username?: string; onClose: () => void }) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -896,7 +896,7 @@ function ShareCardModal({ open, photo, result, onClose }: { open: boolean; photo
     setError(null);
     setBlob(null);
     setImageUrl(null);
-    createShareCardBlob({ photo, score: result.overall_score, occasion: result.occasion, verdict: conciseLine(result.verdict, "A strong fit with a clear point of view."), takeaway: conciseLine(result.strengths[0] ?? result.summary, "Clean choices with a clear personal direction."), tags: [result.occasion ?? "Casual", result.scores.styling.score && result.scores.styling.score >= 0.8 ? "Well styled" : "Personal style"] })
+    createShareCardBlob({ photo, score: result.overall_score, username, occasion: result.occasion, verdict: conciseLine(result.verdict, "A strong fit with a clear point of view."), takeaway: conciseLine(result.strengths[0] ?? result.summary, "Clean choices with a clear personal direction."), tags: [result.occasion ?? "Casual", result.scores.styling.score && result.scores.styling.score >= 0.8 ? "Well styled" : "Personal style"] })
       .then((nextBlob) => { if (!active) return; setBlob(nextBlob); setImageUrl(URL.createObjectURL(nextBlob)); })
       .catch(() => { if (active) setError("This share card could not be prepared. Try again."); })
       .finally(() => { if (active) setIsLoading(false); });

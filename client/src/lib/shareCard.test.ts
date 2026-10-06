@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatShareScore, imageSourceNeedsEmbedding, wrapShareText } from "./shareCard";
+import { formatShareScore, formatShareUsername, imageSourceNeedsEmbedding, wrapShareText } from "./shareCard";
 
 describe("share card helpers", () => {
   it("formats the displayed score without changing its value", () => {
@@ -17,5 +17,11 @@ describe("share card helpers", () => {
     expect(imageSourceNeedsEmbedding("/manus-storage/outfit.jpg")).toBe(true);
     expect(imageSourceNeedsEmbedding("blob:https://fitcheck.test/photo")).toBe(true);
     expect(imageSourceNeedsEmbedding("data:image/jpeg;base64,abc")).toBe(false);
+  });
+
+  it("turns a display name into the compact share-card handle", () => {
+    expect(formatShareUsername("Virat Kohli")).toBe("viratkohli");
+    expect(formatShareUsername("viratkohli")).toBe("viratkohli");
+    expect(formatShareUsername(undefined)).toBe("");
   });
 });
