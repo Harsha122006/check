@@ -61,30 +61,19 @@ async function imageDataUrl(photo: string) {
 }
 
 function buildShareSvg(input: ShareCardInput) {
-  const occasion = (input.occasion || "Casual").trim();
-  const verdictLines = wrapShareText(input.verdict, 29, 2);
-  const takeawayLines = wrapShareText(input.takeaway, 43, 2);
-  const tags = (input.tags ?? [occasion, "Personal style"]).filter(Boolean).slice(0, 2).map((tag) => tag.toUpperCase());
-  const verdictSvg = verdictLines.map((line, index) => `<text x="80" y="1558" dy="${index * 66}" class="verdict">${escapeXml(line)}</text>`).join("");
-  const takeawaySvg = takeawayLines.map((line, index) => `<text x="80" y="1726" dy="${index * 36}" class="takeaway">${escapeXml(line)}</text>`).join("");
-  const tagSvg = tags.length ? `<text x="80" y="1838" class="tag">${tags.map(escapeXml).join("   ·   ")}</text>` : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${SHARE_CARD_WIDTH}" height="${SHARE_CARD_HEIGHT}" viewBox="0 0 ${SHARE_CARD_WIDTH} ${SHARE_CARD_HEIGHT}">
     <defs>
-      <linearGradient id="photoShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#18232A" stop-opacity=".56"/><stop offset=".24" stop-color="#18232A" stop-opacity="0"/><stop offset=".72" stop-color="#18232A" stop-opacity="0"/><stop offset="1" stop-color="#18232A" stop-opacity=".68"/></linearGradient>
+      <linearGradient id="posterBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#344A5B"/><stop offset=".56" stop-color="#14191F"/><stop offset="1" stop-color="#050608"/></linearGradient>
+      <clipPath id="photoClip"><rect x="84" y="116" width="912" height="1120" rx="30"/></clipPath>
       <style>
-        .brand{font:700 31px Arial,sans-serif;letter-spacing:-1.2px;fill:#FBFAF7}.mono{font:700 18px Arial,sans-serif;letter-spacing:4px;fill:#FF756D}.score{font:400 270px Georgia,serif;letter-spacing:-16px;fill:#FBFAF7}.scoreUnit{font:700 34px Arial,sans-serif;fill:#FF756D}.verdict{font:400 62px Georgia,serif;letter-spacing:-2.5px;fill:#FBFAF7}.takeaway{font:400 27px Arial,sans-serif;fill:#C4CFD0}.tag{font:700 18px Arial,sans-serif;letter-spacing:2.8px;fill:#FF756D}.footer{font:700 16px Arial,sans-serif;letter-spacing:3px;fill:#8E9A9C}
+        .score{font:700 118px Arial,sans-serif;letter-spacing:-5px;fill:#FFFFFF}.unit{font:700 34px Arial,sans-serif;fill:#FF756D}.brand{font:700 42px Arial,sans-serif;letter-spacing:-1.8px;fill:#FFFFFF}
       </style>
     </defs>
-    <rect width="1080" height="1920" fill="#18232A"/>
-    <image x="0" y="0" width="1080" height="1160" preserveAspectRatio="xMidYMid slice" href="${escapeXml(imageHref(input.photo))}" xlink:href="${escapeXml(imageHref(input.photo))}"/>
-    <rect x="0" y="0" width="1080" height="1160" fill="url(#photoShade)"/>
-    <g transform="translate(72 72)"><rect width="50" height="50" rx="12" fill="#FF756D"/><path d="M16 13h22v7H23v21h-7zM29 25h13v7H29z" fill="#18232A"/><text x="70" y="35" class="brand">FitCheck</text></g>
-    <text x="1008" y="107" text-anchor="end" class="mono">${escapeXml(occasion.toUpperCase())}</text>
-    <rect x="0" y="1080" width="1080" height="840" fill="#18232A"/>
-    <rect x="72" y="1150" width="72" height="8" rx="4" fill="#FF756D"/>
-    <text x="72" y="1240" class="mono">FIT SCORE</text><text x="72" y="1450" class="score">${escapeXml(formatShareScore(input.score).replace("/10", ""))}</text><text x="420" y="1448" class="scoreUnit">/10</text>
-    ${verdictSvg}<text x="80" y="1680" class="mono">THE TAKEAWAY</text>${takeawaySvg}${tagSvg}
-    <line x1="80" y1="1870" x2="1000" y2="1870" stroke="#3C4A4D" stroke-width="2"/><text x="80" y="1906" class="footer">FITCHECK</text><text x="1000" y="1906" text-anchor="end" class="footer">YOUR FIT, YOUR SCORE</text>
+    <rect width="1080" height="1920" fill="url(#posterBg)"/>
+    <rect x="68" y="100" width="944" height="1152" rx="38" fill="#0B0D10" opacity=".45"/>
+    <g clip-path="url(#photoClip)"><image x="84" y="116" width="912" height="1120" preserveAspectRatio="xMidYMid slice" href="${escapeXml(imageHref(input.photo))}" xlink:href="${escapeXml(imageHref(input.photo))}"/></g>
+    <text x="540" y="1405" text-anchor="middle" class="score">${escapeXml(formatShareScore(input.score))}</text>
+    <g transform="translate(440 1510)"><rect width="58" height="58" rx="14" fill="#FF756D"/><path d="M18 14h25v8H26v23h-8zM32 27h15v8H32z" fill="#18232A"/><text x="76" y="41" class="brand">FitCheck</text></g>
   </svg>`;
 }
 
