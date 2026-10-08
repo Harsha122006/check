@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, outfitAnalyses, outfits, users } from "../drizzle/schema";
+import { InsertUser, feedback, outfitAnalyses, outfits, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -143,4 +143,11 @@ export async function deleteUserOutfit(userId: number, outfitId: number) {
   await db.delete(outfitAnalyses).where(eq(outfitAnalyses.outfitId, outfitId));
   await db.delete(outfits).where(eq(outfits.id, outfitId));
   return { deleted: true } as const;
+}
+
+export async function createFeedback(input: { userId?: number; category: string; message: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+  await db.insert(feedback).values({ userId: input.userId, category: input.category, message: input.message });
+  return { submitted: true } as const;
 }

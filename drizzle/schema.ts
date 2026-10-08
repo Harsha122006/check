@@ -60,3 +60,16 @@ export const outfitAnalyses = mysqlTable("outfit_analyses", {
 
 export type OutfitAnalysis = typeof outfitAnalyses.$inferSelect;
 export type InsertOutfitAnalysis = typeof outfitAnalyses.$inferInsert;
+
+export const feedback = mysqlTable("feedback", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").references(() => users.id, { onDelete: "set null" }),
+  category: varchar("category", { length: 32 }).notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  userCreatedIdx: index("feedback_user_created_idx").on(table.userId, table.createdAt),
+}));
+
+export type Feedback = typeof feedback.$inferSelect;
+export type InsertFeedback = typeof feedback.$inferInsert;

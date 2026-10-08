@@ -20,12 +20,18 @@ import {
   History as HistoryIcon,
   Heart,
   ImagePlus,
+  LogIn,
+  LogOut,
+  MessageCircle,
+  Monitor,
+  Moon,
   MoreHorizontal,
   Pin,
   RefreshCw,
   ScanLine,
   Share2,
   Sparkles,
+  Sun,
   Trash2,
   Upload,
   X,
@@ -38,6 +44,7 @@ import { isCurrentAnalysisRequest, shouldStartAnalysis } from "@/lib/analysisGua
 import { triggerHaptic } from "@/lib/haptics";
 import { getArchiveMeta, toggleArchiveMeta, type ArchiveMetaMap } from "@/lib/archiveMeta";
 import { createShareCardBlob, formatShareScore } from "@/lib/shareCard";
+import { useTheme, type Appearance, type ThemeName } from "@/contexts/ThemeContext";
 
 type Stage = "home" | "preview" | "analyzing" | "results" | "history";
 
@@ -198,6 +205,65 @@ function CropMarks() {
       <span className="crop-mark crop-mark--br" />
     </>
   );
+}
+
+const appearanceOptions: Array<{ value: Appearance; label: string; icon: typeof Sun }> = [
+  { value: "light", label: "Light mode", icon: Sun },
+  { value: "dark", label: "Dark mode", icon: Moon },
+  { value: "system", label: "System default", icon: Monitor },
+];
+
+const themeOptions: Array<{ value: ThemeName; label: string }> = [
+  { value: "minimal", label: "Minimal" },
+  { value: "ivory", label: "Ivory" },
+  { value: "charcoal", label: "Charcoal" },
+  { value: "soft-stone", label: "Soft stone" },
+];
+
+function FeedbackModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [category, setCategory] = useState("Bug");
+  const [message, setMessage] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const submitFeedback = trpc.feedback.submit.useMutation({ onSuccess: () => { setSubmitted(true); setMessage(""); } });
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!message.trim() || submitFeedback.isPending) return;
+    try { await submitFeedback.mutateAsync({ category: category as "Bug", message: message.trim() }); }
+    catch (error) { toast("Couldn’t send feedback.", { description: error instanceof Error ? error.message : "Try again." }); }
+  };
+  return <div className="feedback-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
+    <section className="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
+      <div className="feedback-modal-head"><div><span className="mono">FITCHECK / FEEDBACK</span><h2 id="feedback-title">Send feedback</h2></div><button className="icon-button" onClick={onClose} aria-label="Close feedback"><X size={17} /></button></div>
+      {submitted ? <div className="feedback-success"><Check size={20} /><strong>Thanks for the feedback.</strong><p>We’ll use it to make FitCheck better.</p><button className="btn btn--quiet" onClick={onClose}>Done</button></div> : <form onSubmit={submit} className="feedback-form">
+        <label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}>{["Bug", "Feature request", "UI feedback", "AI feedback", "Other"].map((option) => <option key={option}>{option}</option>)}</select></label>
+        <label>Your note<textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Tell us what you think..." rows={5} maxLength={2000} /></label>
+        <button className="btn btn--red" type="submit" disabled={!message.trim() || submitFeedback.isPending}>{submitFeedback.isPending ? "Sending…" : "Send feedback"}</button>
+      </form>}
+    </section>
+  </div>;
+}
+
+function HeaderMenu({ user, onClose, onFeedback }: { user: { name?: string | null } | null; onClose: () => void; onFeedback: () => void }) {
+  const { appearance, themeName, setAppearance, setThemeName } = useTheme();
+  const { logout } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+  return <div className="header-menu" role="dialog" aria-label="FitCheck menu" onMouseDown={(event) => event.stopPropagation()}>
+    <div className="header-menu-account"><span className="menu-eyebrow">ACCOUNT</span><strong>{user?.name || "Guest"}</strong><span>{user ? "Signed in to FitCheck" : "Save fits and build your archive"}</span></div>
+    <div className="menu-divider" />
+    <div className="menu-group"><span className="menu-eyebrow">ACCOUNT</span>{user ? <button onClick={async () => { setLoggingOut(true); try { await logout(); onClose(); } catch (error) { toast("Couldn’t log out.", { description: error instanceof Error ? error.message : "Try again." }); } finally { setLoggingOut(false); } }} disabled={loggingOut}><LogOut size={15} /> {loggingOut ? "Logging out…" : "Log out"}</button> : <button onClick={() => { startLogin(); onClose(); }}><LogIn size={15} /> Sign in</button>}</div>
+    <div className="menu-group"><span className="menu-eyebrow">APPEARANCE</span>{appearanceOptions.map(({ value, label, icon: Icon }) => <button key={value} className={appearance === value ? "is-selected" : ""} onClick={() => setAppearance(value)}><Icon size={15} /> {label}<span className="menu-check">{appearance === value ? "✓" : ""}</span></button>)}</div>
+    <div className="menu-group"><span className="menu-eyebrow">THEME</span>{themeOptions.map(({ value, label }) => <button key={value} className={themeName === value ? "is-selected" : ""} onClick={() => setThemeName(value)}><span className={`theme-swatch theme-swatch--${value}`} /> {label}<span className="menu-check">{themeName === value ? "✓" : ""}</span></button>)}</div>
+    <div className="menu-divider" /><button className="menu-feedback" onClick={() => { onFeedback(); onClose(); }}><MessageCircle size={15} /> Feedback</button>
+  </div>;
 }
 
 function RatingReveal({ score }: { score: number }) {
@@ -610,6 +676,8 @@ export default function Home() {
   const [liveResult, setLiveResult] = useState<FitCheckResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [shareCardOpen, setShareCardOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [archiveMeta, setArchiveMeta] = useState<ArchiveMetaMap>(() => {
     if (typeof window === "undefined") return {};
     try { return JSON.parse(window.localStorage.getItem("fitcheck-archive-meta") ?? "{}"); } catch { return {}; }
@@ -766,16 +834,28 @@ export default function Home() {
 
   const share = () => setShareCardOpen(true);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnOutsideTap = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (target?.closest(".header-menu") || target?.closest(".brand-button") || target?.closest(".account-button")) return;
+      setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideTap);
+    return () => document.removeEventListener("pointerdown", closeOnOutsideTap);
+  }, [menuOpen]);
+
   return (
     <div className="fitcheck-shell">
       <header className="topbar">
-        <button className="brand-button" onClick={startOver} aria-label="FitCheck home"><FitMark /></button>
+        <div className="header-brand-wrap"><button className={`brand-button ${menuOpen ? "is-open" : ""}`} onClick={(event) => { event.stopPropagation(); setMenuOpen((current) => !current); }} aria-label="Open FitCheck menu" aria-expanded={menuOpen}><FitMark /></button>{menuOpen && <HeaderMenu user={user} onClose={() => setMenuOpen(false)} onFeedback={() => setFeedbackOpen(true)} />}</div>
         {stage !== "home" && <nav className="topnav" aria-label="Primary navigation">
           <button className={stage !== "history" ? "is-active" : ""} onClick={startOver}>Workbench</button>
           <button className={stage === "history" ? "is-active" : ""} onClick={() => { setSelectedHistoryId(null); setStage("history"); }}>Archive <span className="nav-count">14</span></button>
         </nav>}
         <div className="topbar-tools">
-          {!user && <button className="topbar-new-fit" onClick={() => startLogin()}>Sign in</button>}
+          {!user && <button className="topbar-new-fit" onClick={() => startLogin()}><LogIn size={14} /> Sign in</button>}
+          {user && <button className="account-button" onClick={(event) => { event.stopPropagation(); setMenuOpen(true); }} aria-label="Open account menu"><span>{(user.name || "U").slice(0, 1).toUpperCase()}</span></button>}
           {user && stage !== "home" && <button className="topbar-new-fit" onClick={() => setStage("preview")}><ImagePlus size={14} /> New fit</button>}
         </div>
       </header>
@@ -789,6 +869,7 @@ export default function Home() {
           {stage === "history" && <motion.div key="history" initial={{ opacity: 0, y: 14, scale: 0.995 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.34, ease: [0.23, 1, 0.32, 1] }}><HistoryView items={visibleHistory} onBack={startOver} onDevelop={() => setStage("preview")} onDelete={handleDelete} onTogglePin={(id) => updateArchiveMeta(id, "pinned")} onToggleFavorite={(id) => updateArchiveMeta(id, "favorite")} onSelect={(id) => { if (!user) { toast("Sign in to open saved fits.", { description: "Your archive is private to your account." }); return; } setSelectedHistoryId(Number.parseInt(id, 10)); }} /></motion.div>}
         </AnimatePresence>
         <ShareCardModal open={shareCardOpen} photo={photo} result={liveResult} username={user?.name ?? undefined} onClose={() => setShareCardOpen(false)} />
+        <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
         <input ref={inputRef} type="file" accept="image/*" hidden onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = "";

@@ -6,7 +6,7 @@ import type { TrpcContext } from "./_core/context";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { analyzeFitWithGemini, FitCheckError, type FitCheckResult } from "./fitcheck";
-import { createOutfitRecord, completeOutfitRecord, deleteUserOutfit, failOutfitRecord, findCompletedOutfitByFingerprint, getUserOutfit, listUserOutfits } from "./db";
+import { createFeedback, createOutfitRecord, completeOutfitRecord, deleteUserOutfit, failOutfitRecord, findCompletedOutfitByFingerprint, getUserOutfit, listUserOutfits } from "./db";
 import { storagePut } from "./storage";
 import { fingerprintImageBytes } from "./imageFingerprint";
 import { buildAnalysisCacheKey, PUBLIC_ANALYSIS_CACHE_LIMIT, trimAnalysisCache } from "./analysisCache";
@@ -148,6 +148,10 @@ export const appRouter = router({
     history: protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(24), offset: z.number().int().min(0).default(0) })).query(({ ctx, input }) => listUserOutfits(ctx.user.id, input.limit, input.offset)),
     get: protectedProcedure.input(z.object({ outfitId: z.number().int().positive() })).query(({ ctx, input }) => getUserOutfit(ctx.user.id, input.outfitId)),
     delete: protectedProcedure.input(z.object({ outfitId: z.number().int().positive() })).mutation(({ ctx, input }) => deleteUserOutfit(ctx.user.id, input.outfitId)),
+  }),
+
+  feedback: router({
+    submit: publicProcedure.input(z.object({ category: z.enum(["Bug", "Feature request", "UI feedback", "AI feedback", "Other"]), message: z.string().trim().min(1).max(2000) })).mutation(({ ctx, input }) => createFeedback({ userId: ctx.user?.id, category: input.category, message: input.message })),
   }),
 });
 
