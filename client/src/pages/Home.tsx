@@ -19,6 +19,7 @@ import {
   FolderOpen,
   History as HistoryIcon,
   Heart,
+  House,
   ImagePlus,
   LogIn,
   LogOut,
@@ -26,6 +27,7 @@ import {
   Monitor,
   Moon,
   MoreHorizontal,
+  Menu as MenuIcon,
   Pin,
   RefreshCw,
   ScanLine,
@@ -881,6 +883,12 @@ export default function Home() {
           if (file) chooseFile(file);
         }} />
       </main>
+      <nav className="mobile-bottom-nav" aria-label="FitCheck navigation">
+        <button className={stage === "home" ? "is-active" : ""} onClick={startOver}><House size={19} /><span>Home</span></button>
+        <button className={stage === "history" ? "is-active" : ""} onClick={() => { setSelectedHistoryId(null); setStage("history"); }}><HistoryIcon size={19} /><span>Archive</span></button>
+        <button className="mobile-bottom-scan" onClick={() => setStage("preview")}><ScanLine size={21} /><span>Check fit</span></button>
+        <button className={menuOpen ? "is-active" : ""} onClick={() => setMenuOpen((current) => !current)}><MenuIcon size={19} /><span>Menu</span></button>
+      </nav>
 
     </div>
   );
