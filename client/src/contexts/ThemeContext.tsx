@@ -31,7 +31,8 @@ function systemAppearance(): "light" | "dark" {
 export function ThemeProvider({ children, defaultTheme = "light", switchable = true }: { children: React.ReactNode; defaultTheme?: "light" | "dark"; switchable?: boolean }) {
   const [appearance, setAppearanceState] = useState<Appearance>(() => readStored(APPEARANCE_KEY, defaultTheme));
   const [themeName, setThemeNameState] = useState<ThemeName>(() => readStored(THEME_KEY, "minimal"));
-  const resolvedAppearance = appearance === "system" ? systemAppearance() : appearance;
+  const [systemResolvedAppearance, setSystemResolvedAppearance] = useState<"light" | "dark">(() => systemAppearance());
+  const resolvedAppearance = appearance === "system" ? systemResolvedAppearance : appearance;
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -46,7 +47,7 @@ export function ThemeProvider({ children, defaultTheme = "light", switchable = t
   useLayoutEffect(() => {
     if (appearance !== "system") return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const update = () => setAppearanceState((current) => current);
+    const update = () => setSystemResolvedAppearance(systemAppearance());
     media.addEventListener?.("change", update);
     return () => media.removeEventListener?.("change", update);
   }, [appearance]);
