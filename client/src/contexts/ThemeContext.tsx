@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useLayoutEffect, useMemo, useState } from "react";
 
-export type Appearance = "light" | "dark" | "system";
+export type Appearance = "light";
 export type ThemeName = "minimal" | "ivory" | "charcoal" | "soft-stone";
 
 type ThemeContextType = {
-  theme: "light" | "dark";
+  theme: "light";
   appearance: Appearance;
-  resolvedAppearance: "light" | "dark";
+  resolvedAppearance: "light";
   themeName: ThemeName;
   setAppearance: (appearance: Appearance) => void;
   setThemeName: (theme: ThemeName) => void;
@@ -18,49 +18,36 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const APPEARANCE_KEY = "fitcheck-appearance";
 const THEME_KEY = "fitcheck-theme";
 
-function readStored<T extends string>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  const value = window.localStorage.getItem(key);
-  return value ? (value as T) : fallback;
+function readStoredTheme(): ThemeName {
+  if (typeof window === "undefined") return "minimal";
+  const value = window.localStorage.getItem(THEME_KEY);
+  return value === "ivory" || value === "charcoal" || value === "soft-stone" ? value : "minimal";
 }
 
-function systemAppearance(): "light" | "dark" {
-  return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-export function ThemeProvider({ children, defaultTheme = "light", switchable = true }: { children: React.ReactNode; defaultTheme?: "light" | "dark"; switchable?: boolean }) {
-  const [appearance, setAppearanceState] = useState<Appearance>(() => readStored(APPEARANCE_KEY, defaultTheme));
-  const [themeName, setThemeNameState] = useState<ThemeName>(() => readStored(THEME_KEY, "minimal"));
-  const resolvedAppearance = appearance === "system" ? systemAppearance() : appearance;
+export function ThemeProvider({ children, switchable = true }: { children: React.ReactNode; defaultTheme?: "light" | "dark"; switchable?: boolean }) {
+  const [themeName, setThemeNameState] = useState<ThemeName>(readStoredTheme);
 
   useLayoutEffect(() => {
     const root = document.documentElement;
-    root.dataset.appearance = resolvedAppearance;
+    root.dataset.appearance = "light";
     root.dataset.theme = themeName;
-    root.classList.toggle("dark", resolvedAppearance === "dark");
-    root.style.colorScheme = resolvedAppearance;
-    window.localStorage.setItem(APPEARANCE_KEY, appearance);
+    root.classList.remove("dark");
+    root.style.colorScheme = "light";
+    window.localStorage.setItem(APPEARANCE_KEY, "light");
     window.localStorage.setItem(THEME_KEY, themeName);
-  }, [appearance, resolvedAppearance, themeName]);
-
-  useLayoutEffect(() => {
-    if (appearance !== "system") return;
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const update = () => setAppearanceState((current) => current);
-    media.addEventListener?.("change", update);
-    return () => media.removeEventListener?.("change", update);
-  }, [appearance]);
+  }, [themeName]);
 
   const value = useMemo<ThemeContextType>(() => ({
-    theme: resolvedAppearance,
-    appearance,
-    resolvedAppearance,
+    theme: "light",
+    appearance: "light",
+    resolvedAppearance: "light",
     themeName,
-    setAppearance: (next) => setAppearanceState(next),
+    setAppearance: () => undefined,
     setThemeName: (next) => setThemeNameState(next),
-    toggleTheme: () => setAppearanceState((current) => current === "dark" ? "light" : "dark"),
+    // Kept as a no-op for shared showcase components; FitCheck itself is light-only.
+    toggleTheme: () => undefined,
     switchable,
-  }), [appearance, resolvedAppearance, themeName, switchable]);
+  }), [themeName, switchable]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

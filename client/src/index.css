@@ -695,13 +695,9 @@ h1 em, .flow-heading em, .results-topline em, .history-heading em, .home-copy h1
 .upload-header h1 em, .analyzing-view h1 em, .history-heading h1 em, .home-copy h1 em { color: var(--ink); }
 /* Functional menu, persistent appearance, and theme tokens. */
 html { transition: background-color .22s ease, color .22s ease; }
-html[data-appearance="dark"] {
-  --paper: #151515; --surface: #1D1D1B; --card-bg: #20201E; --ink: #F5F4F0; --muted: #B4B2AC; --quiet: #85837D; --soft-blue: #343330; --accent-blue: #C8C3B8; --line: #343330; --success: #A7B39F; --warning: #C8AB79; --error: #C28F8F; --background: var(--paper); --foreground: var(--ink); --card: var(--card-bg); --card-foreground: var(--ink); --popover: var(--card-bg); --popover-foreground: var(--ink); --primary: var(--ink); --primary-foreground: #151515; --secondary: var(--surface); --secondary-foreground: var(--ink); --muted-foreground: var(--muted); --accent: var(--soft-blue); --accent-foreground: var(--ink); --border: var(--line); --input: var(--line); --ring: var(--ink);
-}
 html[data-theme="ivory"] { --paper: #F7F2E9; --surface: #EEE8DC; --card-bg: #FFFDF8; --line: #DED6C8; --soft-blue: #E9E0D0; --accent-blue: #9E8F78; }
 html[data-theme="charcoal"] { --paper: #E9E8E5; --surface: #DEDDD9; --card-bg: #F5F4F0; --ink: #242421; --muted: #676762; --line: #CFCFC9; --soft-blue: #D4D3CE; --accent-blue: #5B5A54; }
 html[data-theme="soft-stone"] { --paper: #F1F0ED; --surface: #E6E4DF; --card-bg: #FBFAF7; --line: #D4D2CC; --soft-blue: #DDDAD2; --accent-blue: #8E8A80; }
-html[data-appearance="dark"][data-theme="ivory"], html[data-appearance="dark"][data-theme="charcoal"], html[data-appearance="dark"][data-theme="soft-stone"] { --paper: #151515; --surface: #1D1D1B; --card-bg: #20201E; --line: #343330; --soft-blue: #343330; --accent-blue: #C8C3B8; }
 body, .fitcheck-shell, .topbar, .upload-card, .recent-fit-card, .feedback-modal, .header-menu { transition: background-color .22s ease, color .22s ease, border-color .22s ease; }
 .fitcheck-shell { background: var(--paper); }
 .topbar { z-index: 60; }
