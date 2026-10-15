@@ -30,11 +30,12 @@ export function ThemeProvider({ children, switchable = true }: { children: React
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.dataset.appearance = "light";
-    root.dataset.theme = themeName;
+    // FitCheck now uses one consistent blue, light-only visual system.
+    root.dataset.theme = "minimal";
     root.classList.remove("dark");
     root.style.colorScheme = "light";
     window.localStorage.setItem(APPEARANCE_KEY, "light");
-    window.localStorage.setItem(THEME_KEY, themeName);
+    window.localStorage.removeItem(THEME_KEY);
   }, [themeName]);
 
   const value = useMemo<ThemeContextType>(() => ({

@@ -43,7 +43,6 @@ import { isCurrentAnalysisRequest, shouldStartAnalysis } from "@/lib/analysisGua
 import { triggerHaptic } from "@/lib/haptics";
 import { getArchiveMeta, toggleArchiveMeta, type ArchiveMetaMap } from "@/lib/archiveMeta";
 import { createShareCardBlob, formatShareScore } from "@/lib/shareCard";
-import { useTheme, type ThemeName } from "@/contexts/ThemeContext";
 
 type Stage = "home" | "preview" | "analyzing" | "results" | "history";
 
@@ -206,13 +205,6 @@ function CropMarks() {
   );
 }
 
-const themeOptions: Array<{ value: ThemeName; label: string }> = [
-  { value: "minimal", label: "Minimal" },
-  { value: "ivory", label: "Ivory" },
-  { value: "charcoal", label: "Charcoal" },
-  { value: "soft-stone", label: "Soft stone" },
-];
-
 function FeedbackModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [category, setCategory] = useState("Bug");
   const [message, setMessage] = useState("");
@@ -246,14 +238,12 @@ function FeedbackModal({ open, onClose }: { open: boolean; onClose: () => void }
 }
 
 function HeaderMenu({ user, onClose, onFeedback }: { user: { name?: string | null } | null; onClose: () => void; onFeedback: () => void }) {
-  const { themeName, setThemeName } = useTheme();
   const { logout } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   return <div className="header-menu" role="dialog" aria-label="FitCheck menu" onMouseDown={(event) => event.stopPropagation()}>
     <div className="header-menu-account"><span className="menu-eyebrow">ACCOUNT</span><strong>{user?.name || "Guest"}</strong><span>{user ? "Signed in to FitCheck" : "Save fits and build your archive"}</span></div>
     <div className="menu-divider" />
     <div className="menu-group"><span className="menu-eyebrow">ACCOUNT</span>{user ? <button onClick={async () => { setLoggingOut(true); try { await logout(); onClose(); } catch (error) { toast("Couldn’t log out.", { description: error instanceof Error ? error.message : "Try again." }); } finally { setLoggingOut(false); } }} disabled={loggingOut}><LogOut size={15} /> {loggingOut ? "Logging out…" : "Log out"}</button> : <button onClick={() => { startLogin(); onClose(); }}><LogIn size={15} /> Sign in</button>}</div>
-    <div className="menu-group"><span className="menu-eyebrow">THEME</span>{themeOptions.map(({ value, label }) => <button key={value} className={themeName === value ? "is-selected" : ""} onClick={() => setThemeName(value)}><span className={`theme-swatch theme-swatch--${value}`} /> {label}<span className="menu-check">{themeName === value ? "✓" : ""}</span></button>)}</div>
     <div className="menu-divider" /><button className="menu-feedback" onClick={() => { onFeedback(); onClose(); }}><MessageCircle size={15} /> Feedback</button>
   </div>;
 }
