@@ -119,7 +119,17 @@ const fitCheckResponseSchema = {
   required: ["occasion", "overall_score", "confidence", "image_quality", "coverage", "scores", "verdict", "strengths", "improvements", "summary"],
 };
 
+export const PRIMARY_SUBJECT_FOCUS_INSTRUCTION = [
+  "PRIMARY-SUBJECT FOCUS: Identify the main person first, using the largest or most central clearly visible person presenting the outfit.",
+  "Attribute clothing only to that person. Ignore clothing, limbs, reflections, mannequins, people, bags, furniture, signs, or objects belonging to anyone or anything in the background.",
+  "A background obstacle behind or beside the main person is not part of the outfit and must not lower any clothing score. If an obstacle overlaps the main person, judge only the garment pixels that are actually visible and mark the affected category unclear or not_visible when there is not enough evidence.",
+  "FRAME BOUNDARIES: Treat the image edge as a hard visibility boundary. Never infer a garment, shoe, hem, sleeve, color, pattern, or fit that is outside the frame.",
+  "Score visible clothing normally; clothing being cropped is not a poor fit and must not lower the score. Mark only the unavailable category as null and explain briefly that it is outside the frame. Do not let a cropped or obstructed area contaminate scores for other clearly visible garments.",
+].join("\\n\\n");
+
 const systemInstruction = `You are Fit Check, a consistent professional clothing-rating engine. Evaluate the outfit as a combination of garments, never the person wearing it.
+
+${PRIMARY_SUBJECT_FOCUS_INSTRUCTION}
 
 Ignore face, hair, skin, body shape or size, height, physique, pose, expression, body language, attractiveness, personality, confidence, background, location, environment, lighting, camera quality, and photography composition. None of those may affect any score, confidence value, verdict, strength, improvement, or summary.
 
@@ -311,7 +321,7 @@ export async function analyzeFitWithGemini({ imageDataUrl, category, signal }: {
           { role: "system", content: systemInstruction },
           { role: "user", content: [
             { type: "image_url", image_url: { url: `data:${mimeType};base64,${data}`, detail: "high" } },
-            { type: "text", text: `${occasionHint}\nAnalyze this outfit for Fit Check in one pass. Return only the requested structured JSON, set occasion to ${occasion}, and keep strengths and improvements occasion-aware.` },
+            { type: "text", text: `${occasionHint}\nApply the primary-subject and frame-boundary rules exactly. Analyze only the main person's visible outfit in one pass. Return only the requested structured JSON, set occasion to ${occasion}, and keep strengths and improvements occasion-aware.` },
           ] },
         ],
         responseFormat: { type: "json_schema", json_schema: { name: "fit_check_result", strict: true, schema: fitCheckResponseSchema as Record<string, unknown> } },
